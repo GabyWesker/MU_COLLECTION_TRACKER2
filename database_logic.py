@@ -4,10 +4,13 @@ from pathlib import Path
 import bcrypt
 import pandas as pd
 import psycopg2
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 NEON_CONN = os.environ.get("NEON_CONN")
+MU_API_URL = os.environ.get("MU_API_URL", "https://mudream-api.crusoft.dev/api/game/market/items")
+MU_API_TOKEN = os.environ.get("MU_API_TOKEN")
 BASE_DIR = Path(__file__).resolve().parent
 SETS_ASSETS_DIR = BASE_DIR / "static" / "assets" / "Sets"
 
@@ -37,6 +40,32 @@ BASE_MASTER_SETS = [
     "Black Dragon",
     "Bone",
 ]
+
+EXCELLENT_OPTION_CODES = {
+    "sd": {"sd", "imsd"},
+    "dd": {"dd"},
+    "dsr": {"dsr"},
+    "ref": {"ref", "rd"},
+    "hp": {"hp", "iml"},
+    "zen": {"zen", "izdr"},
+}
+
+def _market_option_values(options):
+    values = set()
+    for option in options or []:
+        if isinstance(option, dict):
+            values.update(str(value).lower() for value in option.values() if value is not None)
+        else:
+            values.add(str(option).lower())
+    return values
+
+def _matches_required_options(item, excellent_options):
+    item_options = _market_option_values(item.get("options", []))
+    for option in excellent_options:
+        allowed_codes = EXCELLENT_OPTION_CODES.get(option, {option})
+        if not item_options.intersection(allowed_codes):
+            return False
+    return True
 
 def get_connection():
     if not NEON_CONN:
@@ -388,4 +417,43 @@ def get_user_id_by_username(username):
         print(f"Error: {e}")
         conn.close()
         return None
+
+def search_market(item_name, luck=None, excellent_options=None):
+    excellent_options = [opt for opt in (excellent_options or []) if opt in EXCELLENT_OPTION_CODES]
+    headers = {}
+    if MU_API_TOKEN:
+        headers["Authorization"] = f"Bearer {MU_API_TOKEN}"
+
+    option_codes = []
+    for option in excellent_options:
+        option_codes.extend(sorted(EXCELLENT_OPTION_CODES[option]))
+
+    params = {
+        "query": item_name,
+        "limit": 30,
+    }
+    if luck is True:
+        params["luck"] = "true"
+    if option_codes:
+        params["options"] = ",".join(option_codes)
+
+    try:
+        response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
+        if response.status_code != 200:
+            print(f"Error de API de mercado: {response.status_code}")
+            return []
+
+        data = response.json()
+        items = data if isinstance(data, list) else data.get("items", [])
+        results = []
+        for item in items:
+            if luck is True and not item.get("hasLuck", item.get("luck", False)):
+                continue
+            if excellent_options and not _matches_required_options(item, excellent_options):
+                continue
+            results.append(item)
+        return results
+    except Exception as e:
+        print(f"Error consultando mercado: {e}")
+        return []
 

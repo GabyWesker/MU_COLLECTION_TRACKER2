@@ -19,7 +19,8 @@ from database_logic import (
     create_set_complete,
     get_user_id_by_username,
     get_master_sets,
-    get_user_sets
+    get_user_sets,
+    search_market
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -64,6 +65,31 @@ class AddItemRequest(BaseModel):
     hp: int
     zen: int
 
+ITEM_DEFAULTS = {
+    "nombre_set": "",
+    "pieza": "",
+    "kundun": 0,
+    "obtenido": False,
+    "luck": False,
+    "nivel_bs": 0,
+    "add_lif": 0,
+    "opt_sd": False,
+    "opt_dd": False,
+    "opt_dsr": False,
+    "opt_ref": False,
+    "opt_hp": False,
+    "opt_zen": False,
+}
+
+def dataframe_records(df, defaults=None):
+    if df.empty:
+        return []
+    safe_df = df.copy()
+    for column, default in (defaults or {}).items():
+        if column in safe_df.columns:
+            safe_df[column] = safe_df[column].fillna(default)
+    return safe_df.to_dict(orient="records")
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse(
@@ -103,9 +129,14 @@ async def get_user_sets_endpoint(user_id: int):
 @app.get("/api/user/{user_id}/data")
 async def get_user_data(user_id: int):
     df, df_premios = load_data(user_id)
-    items = df.to_dict(orient="records") if not df.empty else []
-    premios = df_premios.to_dict(orient="records") if not df_premios.empty else []
+    items = dataframe_records(df, ITEM_DEFAULTS)
+    premios = dataframe_records(df_premios)
     return {"items": items, "premios": premios}
+
+@app.get("/search-items")
+async def search_items(query: str, luck: Optional[bool] = None, opts: Optional[str] = None):
+    excellent_options = [opt.strip().lower() for opt in opts.split(",") if opt.strip()] if opts else []
+    return search_market(query, luck=luck, excellent_options=excellent_options)
 
 @app.post("/api/user/{user_id}/create_set")
 async def create_set(user_id: int, req: CreateSetRequest):
