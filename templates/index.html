@@ -154,15 +154,24 @@
             </div>
 
             <!-- Active Set Bonuses -->
-            <div id="bonusPanel" class="hidden bg-mu-card border border-mu-border rounded-xl p-5 mb-6">
-                <div class="flex flex-col lg:flex-row gap-5">
-                    <div class="lg:w-1/2">
-                        <h3 class="text-lg font-bold text-white mb-3">🎁 Bonus activos</h3>
-                        <div id="activeBonusList" class="space-y-2"></div>
+            <div id="bonusPanel" class="hidden bg-mu-card border border-mu-border rounded-xl mb-6 overflow-hidden">
+                <button onclick="toggleBonusPanel()" class="w-full p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-left hover:bg-mu-dark transition">
+                    <div>
+                        <h3 class="text-lg font-bold text-white">🎁 Bonus activos</h3>
+                        <p id="bonusSummaryText" class="text-sm text-gray-400 mt-1">Calculando bonus...</p>
                     </div>
-                    <div class="lg:w-1/2">
-                        <h3 class="text-lg font-bold text-white mb-3">📈 Total acumulado</h3>
-                        <div id="bonusTotals" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    <span id="bonusToggleIcon" class="text-gray-400 text-xl self-end sm:self-auto">⌄</span>
+                </button>
+                <div id="bonusDetails" class="hidden border-t border-mu-border p-5">
+                    <div class="flex flex-col lg:flex-row gap-5">
+                        <div class="lg:w-1/2">
+                            <h4 class="text-base font-bold text-white mb-3">Sets completos</h4>
+                            <div id="activeBonusList" class="space-y-2"></div>
+                        </div>
+                        <div class="lg:w-1/2">
+                            <h4 class="text-base font-bold text-white mb-3">Total acumulado</h4>
+                            <div id="bonusTotals" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -899,6 +908,19 @@
             return `+${value}${meta.unit} ${meta.label}`;
         }
 
+        function formatBonusTotals(totals) {
+            return Object.entries(totals)
+                .map(([stat, value]) => formatBonus(stat, value))
+                .join(' · ');
+        }
+
+        function toggleBonusPanel() {
+            const details = document.getElementById('bonusDetails');
+            const icon = document.getElementById('bonusToggleIcon');
+            const isHidden = details.classList.toggle('hidden');
+            icon.textContent = isHidden ? '⌄' : '⌃';
+        }
+
         function getActiveSetBonuses(items = allItems) {
             const grouped = {};
             (items || []).forEach(item => {
@@ -921,6 +943,7 @@
 
         function renderBonusSummary(items = allItems) {
             const panel = document.getElementById('bonusPanel');
+            const summaryEl = document.getElementById('bonusSummaryText');
             const totalsEl = document.getElementById('bonusTotals');
             const setsEl = document.getElementById('activeBonusList');
             const activeBonuses = getActiveSetBonuses(items);
@@ -935,6 +958,7 @@
             panel.classList.remove('hidden');
 
             if (activeBonuses.length === 0) {
+                summaryEl.textContent = 'Sin sets completos';
                 totalsEl.innerHTML = '';
                 setsEl.innerHTML = `
                     <div class="bg-mu-dark border border-mu-border rounded-lg px-3 py-3 text-sm text-gray-400">
@@ -944,6 +968,7 @@
                 return;
             }
 
+            summaryEl.textContent = `${activeBonuses.length} set${activeBonuses.length === 1 ? '' : 's'} completo${activeBonuses.length === 1 ? '' : 's'} · ${formatBonusTotals(totals)}`;
             totalsEl.innerHTML = Object.entries(totals).map(([stat, value]) => `
                 <div class="bg-mu-dark border border-mu-border rounded-lg px-3 py-2">
                     <p class="text-xs text-gray-500 uppercase tracking-wide">Total ${escapeHtml(BONUS_STATS[stat]?.label || stat)}</p>
