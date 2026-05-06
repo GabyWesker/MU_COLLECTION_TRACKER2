@@ -141,9 +141,18 @@ def _item_has_luck(item):
 
 def _get_market_api_url():
     parsed = urlparse(MU_API_URL)
-    if parsed.path in ("", "/"):
-        return MU_API_URL.rstrip("/") + "/api/game/market/items"
-    return MU_API_URL
+    if parsed.path.rstrip("/").endswith("/api/game/market/items"):
+        return MU_API_URL
+
+    origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else MU_API_URL.rstrip("/")
+    path = parsed.path.rstrip("/")
+    if path.endswith("/api/game/market"):
+        return origin + path + "/items"
+    if path.endswith("/api/game"):
+        return origin + path + "/market/items"
+    if path.endswith("/api"):
+        return origin + path + "/game/market/items"
+    return origin + "/api/game/market/items"
 
 def _market_items_from_response(data):
     if isinstance(data, list):
@@ -533,12 +542,23 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
         return params
 
     def request_items(params):
-        response = requests.get(_get_market_api_url(), headers=headers, params=params, timeout=10)
+        market_url = _get_market_api_url()
+        response = requests.get(market_url, headers=headers, params=params, timeout=10)
+        parsed_url = urlparse(market_url)
+        print(
+            "[market] "
+            f"GET {parsed_url.netloc}{parsed_url.path} "
+            f"query={params.get('query')} "
+            f"options={params.get('options', '-')} "
+            f"status={response.status_code}"
+        )
         if response.status_code == 404:
             return []
         if response.status_code != 200:
             raise RuntimeError(f"Error de API de mercado: {response.status_code}")
-        return _market_items_from_response(response.json())
+        items = _market_items_from_response(response.json())
+        print(f"[market] upstream_items={len(items)} query={params.get('query')}")
+        return items
 
     try:
         items = request_items(build_params())
@@ -568,6 +588,7 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
                 "match_score": 1,
                 "match_reasons": match_reasons,
             })
+        print(f"[market] returned_results={len(results)} query={item_name}")
         return results
     except Exception as e:
         print(f"Error consultando mercado: {e}")
