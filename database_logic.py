@@ -128,16 +128,6 @@ def _item_market_option_values(item):
             values.update(_market_option_values(item.get(key)))
     return values
 
-def _matches_all_required_options(item, excellent_options):
-    item_options = _item_market_option_values(item)
-    if not item_options:
-        return False
-    for option in excellent_options:
-        allowed_codes = EXCELLENT_OPTION_CODES.get(option, {option})
-        if not item_options.intersection(allowed_codes):
-            return False
-    return True
-
 def _item_has_luck(item):
     if "hasLuck" in item:
         return bool(item.get("hasLuck"))
@@ -521,7 +511,7 @@ def get_user_id_by_username(username):
         conn.close()
         return None
 
-def search_market(item_name, luck=None, excellent_options=None):
+def search_market(item_name, luck=None, excellent_options=None, ancient=False):
     excellent_options = [opt for opt in (excellent_options or []) if opt in EXCELLENT_OPTION_CODES]
     if not MU_API_TOKEN:
         raise RuntimeError("MU_API_TOKEN no está configurado")
@@ -533,13 +523,12 @@ def search_market(item_name, luck=None, excellent_options=None):
         code = MARKET_OPTION_CODES[option]
         option_filters.extend(f"{code}{level}" for level in MARKET_OPTION_LEVELS)
 
-    def build_params(include_options=True):
+    def build_params():
         params = {
             "query": item_name,
             "limit": 25,
         }
-        if include_options and option_filters:
-            params["excellent"] = "true"
+        if option_filters:
             params["options"] = ",".join(option_filters)
         return params
 
@@ -553,17 +542,32 @@ def search_market(item_name, luck=None, excellent_options=None):
 
     try:
         items = request_items(build_params())
-        if not items and (luck is True or option_filters):
-            # Some market API versions return 404/empty for exact option filters.
-            # Broaden the remote search, then apply the saved set filters locally.
-            items = request_items(build_params(include_options=False))
         results = []
         for item in items:
             if luck is True and not _item_has_luck(item):
                 continue
-            if excellent_options and not _matches_all_required_options(item, excellent_options):
-                continue
-            results.append(item)
+            item_opts = item.get("options", [])
+            match_reasons = []
+            if luck:
+                match_reasons.append("Luck")
+            for _ in excellent_options:
+                for item_opt in item_opts:
+                    match_reasons.append(item_opt)
+                    break
+            results.append({
+                "name": item.get("name", ""),
+                "level": item.get("level", 0),
+                "isExcellent": item.get("isExcellent", False),
+                "isAncient": item.get("isAncient", False),
+                "hasLuck": item.get("hasLuck", False),
+                "hasSkill": item.get("hasSkill", False),
+                "gearScore": item.get("gearScore", 0),
+                "options": item_opts,
+                "prices": item.get("prices", []),
+                "imageUrl": item.get("imageUrl", ""),
+                "match_score": 1,
+                "match_reasons": match_reasons,
+            })
         return results
     except Exception as e:
         print(f"Error consultando mercado: {e}")
