@@ -128,15 +128,15 @@ def _item_market_option_values(item):
             values.update(_market_option_values(item.get(key)))
     return values
 
-def _matches_required_options(item, excellent_options):
+def _matches_any_required_option(item, excellent_options):
     item_options = _item_market_option_values(item)
     if not item_options:
         return True
     for option in excellent_options:
         allowed_codes = EXCELLENT_OPTION_CODES.get(option, {option})
-        if not item_options.intersection(allowed_codes):
-            return False
-    return True
+        if item_options.intersection(allowed_codes):
+            return True
+    return False
 
 def _item_has_luck(item):
     if "hasLuck" in item:
@@ -562,7 +562,7 @@ def search_market(item_name, luck=None, excellent_options=None):
         for item in items:
             if luck is True and not _item_has_luck(item):
                 continue
-            if excellent_options and not _matches_required_options(item, excellent_options):
+            if excellent_options and not _matches_any_required_option(item, excellent_options):
                 continue
             results.append(item)
         return results
