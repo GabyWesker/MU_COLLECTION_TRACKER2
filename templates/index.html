@@ -451,6 +451,14 @@
             'Dark Phoenix': { sd: 6 }
         };
 
+        const SET_NAME_ALIASES = {
+            'Sphinix': 'Sphinx'
+        };
+
+        function normalizeSetName(setName) {
+            return SET_NAME_ALIASES[String(setName ?? '').trim()] || String(setName ?? '');
+        }
+
         function toggleSetSidebar() {
             const sidebar = document.getElementById('setSidebar');
             const overlay = document.getElementById('setSidebarOverlay');
@@ -705,7 +713,7 @@
         }
 
         function getSetImageSrc(setName) {
-            return `/static/assets/Sets/${encodeURIComponent(String(setName ?? ''))}.png`;
+            return `/static/assets/Sets/${encodeURIComponent(normalizeSetName(setName))}.png`;
         }
 
         function switchView(view) {
@@ -751,10 +759,11 @@
             // Group items by set name
             const sets = {};
             items.forEach(item => {
-                if (!sets[item.nombre_set]) {
-                    sets[item.nombre_set] = [];
+                const normalizedSetName = normalizeSetName(item.nombre_set);
+                if (!sets[normalizedSetName]) {
+                    sets[normalizedSetName] = [];
                 }
-                sets[item.nombre_set].push(item);
+                sets[normalizedSetName].push({...item, nombre_set: normalizedSetName});
             });
             
             grid.innerHTML = Object.keys(sets).map(setName => {
@@ -877,6 +886,7 @@
         }
 
         function getRequiredPieces(setName) {
+            setName = normalizeSetName(setName);
             const setsSinHelm = new Set(['Storm Crow', 'Thunder Hawk', 'Sacred Fire', 'Storm Zahard']);
             const setsSinGuantes = new Set();
             if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
@@ -892,8 +902,9 @@
         function getActiveSetBonuses(items = allItems) {
             const grouped = {};
             (items || []).forEach(item => {
-                if (!grouped[item.nombre_set]) grouped[item.nombre_set] = [];
-                grouped[item.nombre_set].push(item);
+                const setName = normalizeSetName(item.nombre_set);
+                if (!grouped[setName]) grouped[setName] = [];
+                grouped[setName].push(item);
             });
 
             return Object.entries(SET_BONUSES)
@@ -958,13 +969,15 @@
             const estado = document.getElementById('filterEstado').value;
             const tier = document.getElementById('filterTier').value;
             const set = document.getElementById('filterSet').value;
+            const normalizedFilterSet = normalizeSetName(set);
 
             let filtered = allItems.filter(item => {
-                if (search && !item.nombre_set.toLowerCase().includes(search) && !item.pieza.toLowerCase().includes(search)) return false;
+                const normalizedItemSet = normalizeSetName(item.nombre_set);
+                if (search && !normalizedItemSet.toLowerCase().includes(search) && !item.pieza.toLowerCase().includes(search)) return false;
                 if (estado === 'Pendientes' && item.obtenido) return false;
                 if (estado === 'Completados' && !item.obtenido) return false;
                 if (tier !== 'Todos' && item.kundun != parseInt(tier)) return false;
-                if (set !== 'Todos' && item.nombre_set !== set) return false;
+                if (set !== 'Todos' && normalizedItemSet !== normalizedFilterSet) return false;
                 return true;
             });
 
@@ -984,9 +997,10 @@
             noItems.classList.add('hidden');
             
             tbody.innerHTML = items.map(item => {
-                const safeSet = escapeHtml(item.nombre_set);
+                const displaySetName = normalizeSetName(item.nombre_set);
+                const safeSet = escapeHtml(displaySetName);
                 const safePiece = escapeHtml(item.pieza);
-                const setLiteral = jsString(item.nombre_set);
+                const setLiteral = jsString(displaySetName);
                 const pieceLiteral = jsString(item.pieza);
                 return `
                 <tr class="border-b border-mu-border hover:bg-mu-dark transition">
@@ -1136,14 +1150,15 @@
             }
 
             const pieceOrder = {Helm: 1, Armor: 2, Pants: 3, Gloves: 4, Boots: 5};
+            const normalizedSet = normalizeSetName(set);
             const setItems = allItems
-                .filter(item => item.nombre_set === set && (!pieza || item.pieza === pieza))
+                .filter(item => normalizeSetName(item.nombre_set) === normalizedSet && (!pieza || item.pieza === pieza))
                 .sort((a, b) => (pieceOrder[a.pieza] || 99) - (pieceOrder[b.pieza] || 99));
 
             const pendingItems = setItems.filter(item => !item.obtenido);
             if (pendingItems.length > 0) return pendingItems;
             if (setItems.length > 0) return setItems;
-            return [{nombre_set: set, pieza: pieza || '', luck: false}];
+            return [{nombre_set: normalizedSet, pieza: pieza || '', luck: false}];
         }
 
         function closeMarketResults() {
@@ -1230,11 +1245,12 @@
         }
 
         async function searchInMarket(itemId, set, pieza) {
+            const canonicalSet = normalizeSetName(set);
             const targets = getMarketTargets(itemId, set, pieza);
-            const title = `🛒 Mercado: ${set}${pieza ? ` ${pieza}` : ''}`;
+            const title = `🛒 Mercado: ${canonicalSet}${pieza ? ` ${pieza}` : ''}`;
             const groups = targets.map(item => ({
                 item,
-                query: `${item.nombre_set || set} ${item.pieza || pieza || ''}`.trim(),
+                query: `${normalizeSetName(item.nombre_set || set)} ${item.pieza || pieza || ''}`.trim(),
                 filters: describeMarketFilters(item),
                 loading: true,
                 results: []
