@@ -889,9 +889,9 @@
             return `+${value}${meta.unit} ${meta.label}`;
         }
 
-        function getActiveSetBonuses(items) {
+        function getActiveSetBonuses(items = allItems) {
             const grouped = {};
-            items.forEach(item => {
+            (items || []).forEach(item => {
                 if (!grouped[item.nombre_set]) grouped[item.nombre_set] = [];
                 grouped[item.nombre_set].push(item);
             });
@@ -908,7 +908,7 @@
                 .map(([setName, bonuses]) => ({setName, bonuses}));
         }
 
-        function renderBonusSummary(items) {
+        function renderBonusSummary(items = allItems) {
             const panel = document.getElementById('bonusPanel');
             const totalsEl = document.getElementById('bonusTotals');
             const setsEl = document.getElementById('activeBonusList');
