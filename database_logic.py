@@ -63,6 +63,8 @@ MARKET_OPTION_CODES = {
     "mana": "imm",
 }
 
+MARKET_OPTION_LEVELS = range(5)
+
 def _market_option_values(options):
     values = set()
 
@@ -83,6 +85,9 @@ def _market_option_values(options):
             values.update({"sd", "imsd"})
         if text in {"izdr", "zen"}:
             values.update({"zen", "izdr"})
+        for option, code in MARKET_OPTION_CODES.items():
+            if text.startswith(code) and text[len(code):].isdigit():
+                values.update({option, code})
         if "reflect damage" in text:
             values.update({"ref", "rd"})
         if "defense success rate" in text:
@@ -523,9 +528,10 @@ def search_market(item_name, luck=None, excellent_options=None):
 
     headers = {"Authorization": f"Bearer {MU_API_TOKEN}"}
 
-    option_codes = []
+    option_filters = []
     for option in excellent_options:
-        option_codes.append(MARKET_OPTION_CODES[option])
+        code = MARKET_OPTION_CODES[option]
+        option_filters.extend(f"{code}{level}" for level in MARKET_OPTION_LEVELS)
 
     def build_params(include_luck=True, include_options=True):
         params = {
@@ -534,8 +540,8 @@ def search_market(item_name, luck=None, excellent_options=None):
         }
         if include_luck and luck is True:
             params["luck"] = "true"
-        if include_options and option_codes:
-            params["opts"] = ",".join(option_codes)
+        if include_options and option_filters:
+            params["options"] = ",".join(option_filters)
         return params
 
     def request_items(params):
@@ -548,8 +554,8 @@ def search_market(item_name, luck=None, excellent_options=None):
 
     try:
         items = request_items(build_params())
-        if not items and (luck is True or option_codes):
-            # Some market API versions return 404/empty for exact opts filters.
+        if not items and (luck is True or option_filters):
+            # Some market API versions return 404/empty for exact option filters.
             # Broaden the remote search, then apply the saved set filters locally.
             items = request_items(build_params(include_luck=False, include_options=False))
         results = []
