@@ -70,27 +70,35 @@ def get_users_for_auth():
         print(f"Error en auth: {e}")
         return {}
 
-def register_user(email, username, password, personaje=""):
+def register_user(email, username, password, personaje=None):
     conn = get_connection()
-    if not conn: return "No se pudo conectar a la base de datos"
+    if not conn: return False
     try:
         cur = conn.cursor()
-        pwd_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-        cur.execute(
-            """
-            INSERT INTO usuarios (email, username, password_hash, personaje)
-            VALUES (%s, %s, %s, %s)
-            """,
-            (email, username, pwd_hash, personaje),
-        )
+        # Hasheamos la password antes de guardar.
+        hashed_pwd = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        if personaje is None:
+            cur.execute(
+                "INSERT INTO usuarios (email, username, password_hash) VALUES (%s, %s, %s)",
+                (email, username, hashed_pwd),
+            )
+        else:
+            cur.execute(
+                """
+                INSERT INTO usuarios (email, username, password_hash, personaje)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (email, username, hashed_pwd, personaje),
+            )
         conn.commit()
         cur.close()
         conn.close()
         return True
     except Exception as e:
+        print(f"Error al registrar: {e}")
         conn.rollback()
         conn.close()
-        return str(e)
+        return False
 
 def get_user_info(user_id):
     conn = get_connection()

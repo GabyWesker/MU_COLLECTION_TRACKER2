@@ -5,8 +5,8 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from database_logic import (
-    get_users_for_auth,
     register_user,
+    get_users_for_auth,
     load_data,
     get_all_sets,
     add_full,
