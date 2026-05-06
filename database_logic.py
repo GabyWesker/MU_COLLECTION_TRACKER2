@@ -65,6 +65,16 @@ MARKET_OPTION_CODES = {
 
 MARKET_OPTION_LEVELS = range(5)
 
+MARKET_OPTION_LABELS = {
+    "sd": "SD",
+    "dd": "DD",
+    "dsr": "DSR",
+    "ref": "REF",
+    "hp": "HP",
+    "zen": "ZEN",
+    "mana": "MANA",
+}
+
 def _market_option_values(options):
     values = set()
 
@@ -88,6 +98,8 @@ def _market_option_values(options):
         for option, code in MARKET_OPTION_CODES.items():
             if text.startswith(code) and text[len(code):].isdigit():
                 values.update({option, code})
+        if "damage decrease" in text:
+            values.add("dd")
         if "reflect damage" in text:
             values.update({"ref", "rd"})
         if "defense success rate" in text:
@@ -127,6 +139,17 @@ def _item_market_option_values(item):
         if key in item:
             values.update(_market_option_values(item.get(key)))
     return values
+
+def _match_reasons_for_item(item, excellent_options, luck=False):
+    reasons = []
+    if luck:
+        reasons.append("Luck")
+    item_options = _item_market_option_values(item)
+    for option in excellent_options:
+        allowed_codes = EXCELLENT_OPTION_CODES.get(option, {option})
+        if not item_options or item_options.intersection(allowed_codes):
+            reasons.append(MARKET_OPTION_LABELS.get(option, option.upper()))
+    return reasons
 
 def _item_has_luck(item):
     if "hasLuck" in item:
@@ -567,13 +590,7 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
             if luck is True and not _item_has_luck(item):
                 continue
             item_opts = item.get("options", [])
-            match_reasons = []
-            if luck:
-                match_reasons.append("Luck")
-            for _ in excellent_options:
-                for item_opt in item_opts:
-                    match_reasons.append(item_opt)
-                    break
+            match_reasons = _match_reasons_for_item(item, excellent_options, luck=bool(luck))
             results.append({
                 "name": item.get("name", ""),
                 "level": item.get("level", 0),
