@@ -167,7 +167,26 @@
             <div id="tableView" class="bg-mu-card border border-mu-border rounded-xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
-                        <!-- ... existing table code ... -->
+                        <thead class="bg-mu-dark border-b border-mu-border text-gray-400 uppercase text-xs">
+                            <tr>
+                                <th class="py-3 px-2">Del</th>
+                                <th class="py-3 px-2">Buscar</th>
+                                <th class="py-3 px-2">Estado</th>
+                                <th class="py-3 px-3 text-left">Set</th>
+                                <th class="py-3 px-3 text-left">Pieza</th>
+                                <th class="py-3 px-2">Tier</th>
+                                <th class="py-3 px-2">Enchant</th>
+                                <th class="py-3 px-2">Life</th>
+                                <th class="py-3 px-2">LL</th>
+                                <th class="py-3 px-2">SD</th>
+                                <th class="py-3 px-2">DD</th>
+                                <th class="py-3 px-2">DSR</th>
+                                <th class="py-3 px-2">REF</th>
+                                <th class="py-3 px-2">HP</th>
+                                <th class="py-3 px-2">ZEN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody"></tbody>
                     </table>
                 </div>
                 <div id="loadingItems" class="text-center py-12">
@@ -191,17 +210,6 @@
                 </div>
                 <div id="galleryGrid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- Gallery cards will be rendered here by JS -->
-                </div>
-            </div>
-        </div>
-    </div>
-                <div id="loadingItems" class="text-center py-12">
-                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-mu-purple"></div>
-                </div>
-                <div id="noItems" class="hidden text-center py-12 text-gray-400">
-                    <p class="text-6xl mb-4">📦</p>
-                    <p class="text-lg">Tu colección está vacía</p>
-                    <p class="text-sm mt-2">¡Añade tu primera pieza!</p>
                 </div>
             </div>
         </div>
@@ -395,7 +403,8 @@
                 const uniqueSets = [...new Set(data.sets)];
                 select.innerHTML = '<option value="">Seleccionar set...</option>';
                 uniqueSets.sort().forEach(set => {
-                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                    const safeSet = escapeHtml(set);
+                    select.innerHTML += `<option value="${safeSet}">${safeSet}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading master sets:', error);
@@ -452,7 +461,8 @@
                 const select = document.getElementById('deleteSetSelector');
                 select.innerHTML = '<option value="">Seleccionar set...</option>';
                 data.sets.forEach(set => {
-                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                    const safeSet = escapeHtml(set);
+                    select.innerHTML += `<option value="${safeSet}">${safeSet}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading user sets:', error);
@@ -611,6 +621,23 @@
             }
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function jsString(value) {
+            return JSON.stringify(String(value ?? ''));
+        }
+
+        function getSetImageSrc(setName) {
+            return `/static/assets/Sets/${encodeURIComponent(String(setName ?? ''))}.png`;
+        }
+
         function switchView(view) {
             const tableView = document.getElementById('tableView');
             const galleryView = document.getElementById('galleryView');
@@ -660,33 +687,35 @@
                 sets[item.nombre_set].push(item);
             });
             
-            // Render each set card
             grid.innerHTML = Object.keys(sets).map(setName => {
                 const setItems = sets[setName];
                 const allPieces = ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
-                const setNameForImage = setName.replace(/[^a-zA-Z0-9]/g, '');
+                const safeSetName = escapeHtml(setName);
+                const setNameLiteral = jsString(setName);
+                const imageSrc = getSetImageSrc(setName);
                 
                 return `
                     <div class="bg-slate-900/50 border border-mu-border rounded-xl p-4 relative">
-                        <button onclick="searchInMarket(0, '${setName}', '')" 
+                        <button onclick='searchInMarket(0, ${setNameLiteral}, "")'
                             class="absolute top-3 right-3 w-8 h-8 rounded-full bg-mu-dark border border-mu-border hover:border-mu-purple flex items-center justify-center text-sm">
                             🔍
                         </button>
                         <div class="flex gap-4">
                             <div class="w-32 h-32 flex-shrink-0 border border-mu-border rounded-lg overflow-hidden bg-mu-dark">
-                                <img src="/static/assets/Sets/${setNameForImage}.png" 
-                                     alt="${setName}"
+                                <img src="${imageSrc}"
+                                     alt="${safeSetName}"
                                      class="w-full h-full object-contain p-2"
                                      onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
                             </div>
                             <div class="flex-1">
-                                <h3 class="text-lg font-bold text-white mb-1">${setName}</h3>
+                                <h3 class="text-lg font-bold text-white mb-1">${safeSetName}</h3>
                                 <p class="text-sm text-gray-400 mb-3">🎁 Bonus Activo</p>
                                 <div class="space-y-1">
                                     ${allPieces.map(piece => {
                                         const item = setItems.find(i => i.pieza === piece);
                                         const isObtained = item ? item.obtenido : false;
                                         const itemId = item ? item.id : 0;
+                                        const safePiece = escapeHtml(piece);
                                         return `
                                             <div class="flex items-center gap-2 text-sm">
                                                 <button onclick="${item ? `toggleObtenido(${itemId}, ${isObtained})` : ''}" 
@@ -694,7 +723,7 @@
                                                     ${!item ? 'disabled' : ''}>
                                                     ${isObtained ? '✅' : '❌'}
                                                 </button>
-                                                <span class="${isObtained ? 'text-white' : 'text-red-400'}">${piece}</span>
+                                                <span class="${isObtained ? 'text-white' : 'text-red-400'}">${safePiece}</span>
                                             </div>
                                         `;
                                     }).join('')}
@@ -713,7 +742,8 @@
                 const select = document.getElementById('itemSet');
                 select.innerHTML = '<option value="">Seleccionar set...</option>';
                 data.sets.forEach(set => {
-                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                    const safeSet = escapeHtml(set);
+                    select.innerHTML += `<option value="${safeSet}">${safeSet}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading master sets:', error);
@@ -728,7 +758,8 @@
                 const select = document.getElementById('filterSet');
                 select.innerHTML = '<option value="Todos">Todos los Sets</option>';
                 allSets.forEach(set => {
-                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                    const safeSet = escapeHtml(set);
+                    select.innerHTML += `<option value="${safeSet}">${safeSet}</option>`;
                 });
             } catch (error) {
                 console.error('Error loading sets:', error);
@@ -804,13 +835,18 @@
             
             noItems.classList.add('hidden');
             
-            tbody.innerHTML = items.map(item => `
+            tbody.innerHTML = items.map(item => {
+                const safeSet = escapeHtml(item.nombre_set);
+                const safePiece = escapeHtml(item.pieza);
+                const setLiteral = jsString(item.nombre_set);
+                const pieceLiteral = jsString(item.pieza);
+                return `
                 <tr class="border-b border-mu-border hover:bg-mu-dark transition">
                     <td class="text-center py-3 px-2">
                         <button onclick="deleteItem(${item.id})" class="text-gray-500 hover:text-red-400 transition text-lg" title="Eliminar">🗑️</button>
                     </td>
                     <td class="text-center py-3 px-2">
-                        <button onclick="searchInMarket(${item.id}, '${item.nombre_set}', '${item.pieza}')" class="text-gray-500 hover:text-blue-400 transition text-lg" title="Buscar en mercado">🔍</button>
+                        <button onclick='searchInMarket(${item.id}, ${setLiteral}, ${pieceLiteral})' class="text-gray-500 hover:text-blue-400 transition text-lg" title="Buscar en mercado">🔍</button>
                     </td>
                     <td class="text-center py-3 px-2">
                         <button onclick="toggleObtenido(${item.id}, ${item.obtenido})" 
@@ -818,8 +854,8 @@
                             ${item.obtenido ? '✅' : '❌'}
                         </button>
                     </td>
-                    <td class="py-3 px-3 font-medium text-white">${item.nombre_set}</td>
-                    <td class="py-3 px-3">${item.pieza}</td>
+                    <td class="py-3 px-3 font-medium text-white">${safeSet}</td>
+                    <td class="py-3 px-3">${safePiece}</td>
                     <td class="text-center py-3 px-2">
                         <select onchange="updateCampo(${item.id}, 'kundun', this.value)" class="px-2 py-1 rounded text-xs">
                             ${[1,2,3,4,5].map(k => `<option value="${k}" ${item.kundun==k?'selected':''}>K${k}</option>`).join('')}
@@ -878,7 +914,8 @@
                         </button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
 
         async function updateCampo(itemId, campo, nuevoValor) {

@@ -1,15 +1,14 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from database_logic import (
     get_users_for_auth,
     register_user,
-    get_user_info,
-    update_personaje,
     load_data,
     get_all_sets,
-    save_data,
     add_full,
     delete_item,
     delete_set_complete,
@@ -27,9 +26,13 @@ from typing import Optional
 
 app = FastAPI(title="MU Collection Tracker API")
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
 
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 class UserLogin(BaseModel):
     username: str
