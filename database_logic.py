@@ -128,15 +128,15 @@ def _item_market_option_values(item):
             values.update(_market_option_values(item.get(key)))
     return values
 
-def _matches_any_required_option(item, excellent_options):
+def _matches_all_required_options(item, excellent_options):
     item_options = _item_market_option_values(item)
     if not item_options:
-        return True
+        return False
     for option in excellent_options:
         allowed_codes = EXCELLENT_OPTION_CODES.get(option, {option})
-        if item_options.intersection(allowed_codes):
-            return True
-    return False
+        if not item_options.intersection(allowed_codes):
+            return False
+    return True
 
 def _item_has_luck(item):
     if "hasLuck" in item:
@@ -533,14 +533,13 @@ def search_market(item_name, luck=None, excellent_options=None):
         code = MARKET_OPTION_CODES[option]
         option_filters.extend(f"{code}{level}" for level in MARKET_OPTION_LEVELS)
 
-    def build_params(include_luck=True, include_options=True):
+    def build_params(include_options=True):
         params = {
             "query": item_name,
-            "limit": 30,
+            "limit": 25,
         }
-        if include_luck and luck is True:
-            params["luck"] = "true"
         if include_options and option_filters:
+            params["excellent"] = "true"
             params["options"] = ",".join(option_filters)
         return params
 
@@ -557,12 +556,12 @@ def search_market(item_name, luck=None, excellent_options=None):
         if not items and (luck is True or option_filters):
             # Some market API versions return 404/empty for exact option filters.
             # Broaden the remote search, then apply the saved set filters locally.
-            items = request_items(build_params(include_luck=False, include_options=False))
+            items = request_items(build_params(include_options=False))
         results = []
         for item in items:
             if luck is True and not _item_has_luck(item):
                 continue
-            if excellent_options and not _matches_any_required_option(item, excellent_options):
+            if excellent_options and not _matches_all_required_options(item, excellent_options):
                 continue
             results.append(item)
         return results
