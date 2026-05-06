@@ -1031,6 +1031,10 @@
                 ? prices.map(price => `${escapeHtml(price.currency || '')}: ${escapeHtml(price.amount ?? '')}`).join(' | ')
                 : 'Sin precios publicados';
             const imageUrl = escapeHtml(result.imageUrl || 'https://muonline.webzen.com/img/common/logo.png');
+            const matchReasons = Array.isArray(result.match_reasons) ? result.match_reasons : [];
+            const matchText = matchReasons.length
+                ? matchReasons.map(reason => escapeHtml(typeof reason === 'object' ? Object.values(reason).join(' ') : reason)).join(' | ')
+                : '';
 
             return `
                 <div class="border border-mu-border rounded-lg p-4 flex gap-4 bg-mu-dark">
@@ -1039,6 +1043,7 @@
                         <h4 class="text-sm font-bold text-white">${name} +${escapeHtml(level)}</h4>
                         <p class="text-xs text-gray-400 mt-1">GS: ${escapeHtml(gearScore)} | Opciones: ${optionText}</p>
                         <p class="mt-2 text-xs text-green-300">💰 ${priceText}</p>
+                        ${matchText ? `<p class="mt-2 text-xs text-amber-300">🎯 Match: ${matchText}</p>` : ''}
                     </div>
                 </div>
             `;
