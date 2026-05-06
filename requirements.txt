@@ -1,0 +1,10 @@
+streamlit
+pandas
+psycopg2-binary
+bcrypt
+requests
+extra-streamlit-components
+fastapi
+uvicorn[standard]
+jinja2
+python-dotenv

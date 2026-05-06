@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MU Collection Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'mu-dark': '#0a0e1a',
+                        'mu-card': '#151b2e',
+                        'mu-border': '#2a3654',
+                        'mu-purple': '#8b5cf6',
+                        'mu-blue': '#3b82f6',
+                        'mu-green': '#10b981',
+                        'mu-red': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background: #0a0e1a; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0e1a; }
+        ::-webkit-scrollbar-thumb { background: #2a3654; border-radius: 3px; }
+        .progress-bar { transition: width 0.5s ease-in-out; }
+        select { background-color: #151b2e; border: 1px solid #2a3654; color: #e5e7eb; }
+        select:focus { outline: none; border-color: #8b5cf6; }
+        .opt-btn { transition: all 0.2s; }
+        .sidebar { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="min-h-screen text-gray-200">
+    <div id="app" class="container mx-auto px-4 py-6 max-w-full">
+        <!-- Login/Register Screen -->
+        <div id="authScreen" class="hidden min-h-[80vh] flex items-center justify-center">
+            <div class="w-full max-w-md">
+                <div class="text-center mb-8">
+                    <h1 class="text-6xl mb-4">🛡️</h1>
+                    <h2 class="text-4xl font-bold text-white mb-2">MU Collection Tracker</h2>
+                    <p class="text-gray-400">Gestiona tu colección de sets</p>
+                </div>
+                <div class="bg-mu-card border border-mu-border rounded-xl p-6 shadow-2xl">
+                    <div class="flex mb-6">
+                        <button onclick="showLogin()" id="loginTab" class="flex-1 py-3 px-4 rounded-l-lg bg-mu-purple font-semibold">Iniciar Sesión</button>
+                        <button onclick="showRegister()" id="registerTab" class="flex-1 py-3 px-4 rounded-r-lg bg-gray-700 hover:bg-gray-600 font-medium">Registrarse</button>
+                    </div>
+                    <div id="loginForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Usuario</label>
+                            <input type="text" id="loginUser" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="Tu usuario">
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Contraseña</label>
+                            <input type="password" id="loginPass" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="••••••">
+                        </div>
+                        <button onclick="login()" class="w-full bg-mu-purple hover:bg-purple-600 py-3 px-4 rounded-lg font-semibold transition">Entrar</button>
+                    </div>
+                    <div id="registerForm" class="hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Email</label>
+                            <input type="email" id="regEmail" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="tu@email.com">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Usuario</label>
+                            <input type="text" id="regUser" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="Nombre de usuario">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Personaje</label>
+                            <input type="text" id="regPersonaje" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="Nombre en MU">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Contraseña</label>
+                            <input type="password" id="regPass" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="••••••">
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2 text-gray-300">Confirmar Contraseña</label>
+                            <input type="password" id="regConfirm" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition" placeholder="••••••">
+                        </div>
+                        <button onclick="register()" class="w-full bg-mu-purple hover:bg-purple-600 py-3 px-4 rounded-lg font-semibold transition">Registrarse</button>
+                    </div>
+                    <div id="authMessage" class="mt-4 hidden p-3 rounded-lg text-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="mainApp" class="hidden">
+            <!-- Header -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">🛡️ Mi Colección</h1>
+                    <p id="userInfo" class="text-gray-400 mt-1"></p>
+                </div>
+                <div class="flex gap-3 flex-wrap">
+                    <button onclick="toggleSidebar()" class="bg-mu-purple hover:bg-purple-600 px-5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2">
+                        <span>➕</span> Añadir Item
+                    </button>
+                    <button onclick="toggleSetSidebar()" class="bg-mu-blue hover:bg-blue-600 px-5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2">
+                        <span>🛡️</span> Agregar Set Completo
+                    </button>
+                    <button onclick="toggleDeleteSetSidebar()" class="bg-gray-600 hover:bg-gray-700 px-5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2">
+                        <span>🗑️</span> Eliminar Set Completo
+                    </button>
+                    <button onclick="logout()" class="bg-mu-red hover:bg-red-700 px-5 py-2.5 rounded-lg font-medium transition">Cerrar Sesión</button>
+                </div>
+            </div>
+
+            <!-- Stats & Filters Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Left: Filters -->
+                <div class="bg-mu-card border border-mu-border rounded-xl p-5">
+                    <h3 class="text-lg font-bold text-white mb-4">🔍 Filtros</h3>
+                    <div class="space-y-4">
+                        <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Buscar por set o pieza..." class="w-full px-4 py-2.5 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition text-sm">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <select id="filterEstado" onchange="applyFilters()" class="px-3 py-2.5 rounded-lg text-sm">
+                                <option value="Todos">Todos los estados</option>
+                                <option value="Pendientes">Pendientes ❌</option>
+                                <option value="Completados">Completados ✅</option>
+                            </select>
+                            <select id="filterTier" onchange="applyFilters()" class="px-3 py-2.5 rounded-lg text-sm">
+                                <option value="Todos">Todos los Tiers</option>
+                                <option value="1">K1</option>
+                                <option value="2">K2</option>
+                                <option value="3">K3</option>
+                                <option value="4">K4</option>
+                                <option value="5">K5</option>
+                            </select>
+                            <select id="filterSet" onchange="applyFilters()" class="px-3 py-2.5 rounded-lg text-sm">
+                                <option value="Todos">Todos los Sets</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Progress -->
+                <div class="bg-mu-card border border-mu-border rounded-xl p-5">
+                    <h3 class="text-lg font-bold text-white mb-4">📊 Progreso</h3>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-gray-400 text-sm">Completado</span>
+                        <span id="progressText" class="text-3xl font-bold text-white">0/0</span>
+                    </div>
+                    <div class="w-full bg-mu-dark rounded-full h-4 overflow-hidden">
+                        <div id="progressBar" class="progress-bar bg-gradient-to-r from-mu-blue to-mu-purple h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                    <p id="progressPercent" class="text-right text-sm text-gray-400 mt-2">0%</p>
+                </div>
+            </div>
+
+            <!-- View Toggle Buttons -->
+            <div class="flex gap-2 mb-6">
+                <button onclick="switchView('table')" id="btnTableView" class="flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-semibold transition bg-mu-purple text-white">
+                    📋 Tabla
+                </button>
+                <button onclick="switchView('gallery')" id="btnGalleryView" class="flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-semibold transition bg-mu-dark border border-mu-border text-gray-300 hover:border-mu-purple">
+                    🖼️ Galería
+                </button>
+            </div>
+
+            <!-- Items Table (View 1) -->
+            <div id="tableView" class="bg-mu-card border border-mu-border rounded-xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <!-- ... existing table code ... -->
+                    </table>
+                </div>
+                <div id="loadingItems" class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-mu-purple"></div>
+                </div>
+                <div id="noItems" class="hidden text-center py-12 text-gray-400">
+                    <p class="text-6xl mb-4">📦</p>
+                    <p class="text-lg">Tu colección está vacía</p>
+                    <p class="text-sm mt-2">¡Añade tu primera pieza!</p>
+                </div>
+            </div>
+
+            <!-- Gallery View (View 2) -->
+            <div id="galleryView" class="hidden">
+                <div id="loadingGallery" class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-mu-purple"></div>
+                </div>
+                <div id="noGalleryItems" class="hidden text-center py-12 text-gray-400 bg-mu-card border border-mu-border rounded-xl">
+                    <p class="text-6xl mb-4">🖼️</p>
+                    <p class="text-lg">No hay sets para mostrar</p>
+                </div>
+                <div id="galleryGrid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Gallery cards will be rendered here by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+                <div id="loadingItems" class="text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-mu-purple"></div>
+                </div>
+                <div id="noItems" class="hidden text-center py-12 text-gray-400">
+                    <p class="text-6xl mb-4">📦</p>
+                    <p class="text-lg">Tu colección está vacía</p>
+                    <p class="text-sm mt-2">¡Añade tu primera pieza!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div id="sidebarOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40" onclick="toggleSidebar()"></div>
+    <div id="sidebar" class="sidebar fixed top-0 right-0 h-full w-full sm:w-96 bg-mu-card border-l border-mu-border z-50 transform translate-x-full overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">➕ Añadir Item</h2>
+                <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-2xl">×</button>
+            </div>
+            <form id="addItemForm" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Set</label>
+                    <select id="itemSet" required class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition text-sm">
+                        <option value="">Seleccionar set...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Pieza</label>
+                    <select id="itemPieza" required class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition">
+                        <option value="Helm">Helm</option>
+                        <option value="Armor">Armor</option>
+                        <option value="Pants">Pants</option>
+                        <option value="Gloves">Gloves</option>
+                        <option value="Boots">Boots</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Kundun</label>
+                        <select id="itemKundun" class="w-full px-3 py-3 bg-mu-dark border border-mu-border rounded-lg">
+                            <option value="1">K1</option>
+                            <option value="2">K2</option>
+                            <option value="3">K3</option>
+                            <option value="4">K4</option>
+                            <option value="5">K5</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Enchant</label>
+                        <select id="itemEnchant" class="w-full px-3 py-3 bg-mu-dark border border-mu-border rounded-lg">
+                            <script>
+                                for(let i=0; i<=11; i++) document.write(`<option value="${i}">+${i}</option>`);
+                            </script>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Life</label>
+                        <select id="itemLife" class="w-full px-3 py-3 bg-mu-dark border border-mu-border rounded-lg">
+                            <script>
+                                for(let i=0; i<=7; i++) document.write(`<option value="${i}">+${i}</option>`);
+                            </script>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-3 text-gray-300">Opciones</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition">
+                            <input type="checkbox" id="optLuck" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">Luck</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition">
+                            <input type="checkbox" id="optSD" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">SD</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition">
+                            <input type="checkbox" id="optDD" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">DD</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition">
+                            <input type="checkbox" id="optDSR" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">DSR</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition">
+                            <input type="checkbox" id="optREF" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">REF</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition">
+                            <input type="checkbox" id="optHP" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">HP</span>
+                        </label>
+                        <label class="flex items-center space-x-3 p-3 bg-mu-dark rounded-lg border border-mu-border cursor-pointer hover:border-mu-purple transition col-span-2">
+                            <input type="checkbox" id="optZEN" class="w-5 h-5 text-mu-purple bg-mu-dark border-mu-border rounded focus:ring-mu-purple">
+                            <span class="text-sm font-medium">ZEN</span>
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-mu-purple hover:bg-purple-600 py-3 px-4 rounded-lg font-semibold transition text-lg">➕ Añadir Item</button>
+            </form>
+            <div id="addItemMessage" class="mt-4 hidden p-3 rounded-lg text-sm"></div>
+        </div>
+    </div>
+
+    <!-- Complete Set Sidebar -->
+    <div id="setSidebarOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40" onclick="toggleSetSidebar()"></div>
+    <div id="setSidebar" class="sidebar fixed top-0 right-0 h-full w-full sm:w-96 bg-mu-card border-l border-mu-border z-50 transform translate-x-full overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">🛡️ Agregar Set Completo</h2>
+                <button onclick="toggleSetSidebar()" class="text-gray-400 hover:text-white text-2xl">×</button>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Set</label>
+                    <select id="completeSetSelector" required class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-blue transition text-sm">
+                        <option value="">Cargando sets...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Kundun (Tier)</label>
+                    <select id="completeSetKundun" class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-blue transition">
+                        <option value="1">K1</option>
+                        <option value="2">K2</option>
+                        <option value="3">K3</option>
+                        <option value="4">K4</option>
+                        <option value="5">K5</option>
+                    </select>
+                </div>
+                <div class="bg-mu-dark border border-mu-border rounded-lg p-4">
+                    <p class="text-sm text-gray-400 mb-2">Se crearán automáticamente:</p>
+                    <ul class="text-sm text-gray-300 space-y-1">
+                        <li>📍 Helm</li>
+                        <li>📍 Armor</li>
+                        <li>📍 Pants</li>
+                        <li>📍 Gloves</li>
+                        <li>📍 Boots</li>
+                    </ul>
+                    <p class="text-xs text-gray-500 mt-3">Todas las opciones iniciarán en 0 (pendientes)</p>
+                </div>
+                <button onclick="createCompleteSet()" class="w-full bg-mu-blue hover:bg-blue-600 py-3 px-4 rounded-lg font-semibold transition text-lg">✅ Confirmar y Crear</button>
+                <div id="completeSetMessage" class="hidden p-3 rounded-lg text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Set Sidebar -->
+    <div id="deleteSetSidebarOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40" onclick="toggleDeleteSetSidebar()"></div>
+    <div id="deleteSetSidebar" class="sidebar fixed top-0 right-0 h-full w-full sm:w-96 bg-mu-card border-l border-mu-border z-50 transform translate-x-full overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white">🗑️ Eliminar Set Completo</h2>
+                <button onclick="toggleDeleteSetSidebar()" class="text-gray-400 hover:text-white text-2xl">×</button>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium mb-2 text-gray-300">Set a Eliminar</label>
+                    <select id="deleteSetSelector" required class="w-full px-4 py-3 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-red transition text-sm">
+                        <option value="">Cargando sets...</option>
+                    </select>
+                </div>
+                <div class="bg-red-900 bg-opacity-30 border border-red-800 rounded-lg p-4">
+                    <p class="text-sm text-red-300 mb-2">⚠️ Esta acción es irreversible</p>
+                    <p class="text-xs text-red-400">Se eliminarán TODAS las piezas de este set de tu inventario permanentemente.</p>
+                </div>
+                <button onclick="deleteCompleteSet()" class="w-full bg-mu-red hover:bg-red-700 py-3 px-4 rounded-lg font-semibold transition text-lg">🗑️ Eliminar Set Completo</button>
+                <div id="deleteSetMessage" class="hidden p-3 rounded-lg text-sm"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let currentUserId = localStorage.getItem('userId');
+        let currentUsername = localStorage.getItem('username');
+        let allItems = [];
+        let allSets = [];
+
+        function toggleSetSidebar() {
+            const sidebar = document.getElementById('setSidebar');
+            const overlay = document.getElementById('setSidebarOverlay');
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                overlay.classList.remove('hidden');
+                loadSetsForCompleteSet();
+            } else {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        async function loadSetsForCompleteSet() {
+            try {
+                const response = await fetch(`${API_URL}/api/sets/master`);
+                const data = await response.json();
+                const select = document.getElementById('completeSetSelector');
+                // Limpiar y llenar con lista maestra (sin duplicados)
+                const uniqueSets = [...new Set(data.sets)];
+                select.innerHTML = '<option value="">Seleccionar set...</option>';
+                uniqueSets.sort().forEach(set => {
+                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading master sets:', error);
+            }
+        }
+
+        async function createCompleteSet() {
+            const set = document.getElementById('completeSetSelector').value;
+            const kundun = document.getElementById('completeSetKundun').value;
+            
+            if (!set) {
+                showMessage('completeSetMessage', 'Selecciona un set', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/create_set`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({nombre_set: set, kundun: parseInt(kundun)})
+                });
+                
+                if (response.ok) {
+                    showMessage('completeSetMessage', `¡Set ${set} creado correctamente!`);
+                    setTimeout(() => {
+                        toggleSetSidebar();
+                        loadItems();
+                    }, 1500);
+                } else {
+                    showMessage('completeSetMessage', 'Error al crear el set', true);
+                }
+            } catch (error) {
+                showMessage('completeSetMessage', 'Error de conexión', true);
+            }
+        }
+
+        function toggleDeleteSetSidebar() {
+            const sidebar = document.getElementById('deleteSetSidebar');
+            const overlay = document.getElementById('deleteSetSidebarOverlay');
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                overlay.classList.remove('hidden');
+                loadUserSetsForDelete();
+            } else {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        async function loadUserSetsForDelete() {
+            try {
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/sets`);
+                const data = await response.json();
+                const select = document.getElementById('deleteSetSelector');
+                select.innerHTML = '<option value="">Seleccionar set...</option>';
+                data.sets.forEach(set => {
+                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading user sets:', error);
+            }
+        }
+
+        async function deleteCompleteSet() {
+            const set = document.getElementById('deleteSetSelector').value;
+            
+            if (!set) {
+                showMessage('deleteSetMessage', 'Selecciona un set', true);
+                return;
+            }
+            
+            if (!confirm(`¿Eliminar TODAS las piezas del set "${set}"?`)) return;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/set?nombre_set=${encodeURIComponent(set)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showMessage('deleteSetMessage', `¡Set ${set} eliminado correctamente!`);
+                    setTimeout(() => {
+                        toggleDeleteSetSidebar();
+                        loadItems();
+                    }, 1500);
+                } else {
+                    showMessage('deleteSetMessage', 'Error al eliminar el set', true);
+                }
+            } catch (error) {
+                showMessage('deleteSetMessage', 'Error de conexión', true);
+            }
+        }
+
+        window.onload = function() {
+            if (currentUserId && currentUsername) {
+                showMainApp();
+            } else {
+                showAuthScreen();
+            }
+        };
+
+        function showAuthScreen() {
+            document.getElementById('authScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('userInfo').textContent = `Usuario: ${currentUsername}`;
+            loadItems();
+            loadSetsForFilter();
+        }
+
+        function showLogin() {
+            document.getElementById('loginTab').className = 'flex-1 py-3 px-4 rounded-l-lg bg-mu-purple font-semibold';
+            document.getElementById('registerTab').className = 'flex-1 py-3 px-4 rounded-r-lg bg-gray-700 hover:bg-gray-600 font-medium';
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+        }
+
+        function showRegister() {
+            document.getElementById('registerTab').className = 'flex-1 py-3 px-4 rounded-r-lg bg-mu-purple font-semibold';
+            document.getElementById('loginTab').className = 'flex-1 py-3 px-4 rounded-l-lg bg-gray-700 hover:bg-gray-600 font-medium';
+            document.getElementById('registerForm').classList.remove('hidden');
+            document.getElementById('loginForm').classList.add('hidden');
+        }
+
+        function showMessage(elementId, message, isError = false) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.className = `mt-4 p-3 rounded-lg text-sm ${isError ? 'bg-red-900 text-red-200' : 'bg-green-900 text-green-200'}`;
+            setTimeout(() => el.className = 'mt-4 hidden p-3 rounded-lg text-sm', 3000);
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUser').value;
+            const password = document.getElementById('loginPass').value;
+            if (!username || !password) {
+                showMessage('authMessage', 'Completa todos los campos', true);
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUserId = data.user_id;
+                    currentUsername = data.username;
+                    localStorage.setItem('userId', currentUserId);
+                    localStorage.setItem('username', currentUsername);
+                    showMainApp();
+                } else {
+                    showMessage('authMessage', 'Credenciales inválidas', true);
+                }
+            } catch (error) {
+                showMessage('authMessage', 'Error de conexión', true);
+            }
+        }
+
+        async function register() {
+            const email = document.getElementById('regEmail').value;
+            const username = document.getElementById('regUser').value;
+            const personaje = document.getElementById('regPersonaje').value;
+            const password = document.getElementById('regPass').value;
+            const confirm = document.getElementById('regConfirm').value;
+            if (!email || !username || !password) {
+                showMessage('authMessage', 'Completa los campos obligatorios', true);
+                return;
+            }
+            if (password !== confirm) {
+                showMessage('authMessage', 'Las contraseñas no coinciden', true);
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/api/register`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, username, password, personaje})
+                });
+                if (response.ok) {
+                    showMessage('authMessage', '¡Cuenta creada! Ya puedes iniciar sesión');
+                    showLogin();
+                } else {
+                    const data = await response.json();
+                    showMessage('authMessage', data.detail || 'Error al registrar', true);
+                }
+            } catch (error) {
+                showMessage('authMessage', 'Error de conexión', true);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            currentUserId = null;
+            currentUsername = null;
+            showAuthScreen();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                overlay.classList.remove('hidden');
+                loadMasterSetsForAddItem();
+            } else {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function switchView(view) {
+            const tableView = document.getElementById('tableView');
+            const galleryView = document.getElementById('galleryView');
+            const btnTable = document.getElementById('btnTableView');
+            const btnGallery = document.getElementById('btnGalleryView');
+            
+            if (view === 'gallery') {
+                tableView.classList.add('hidden');
+                galleryView.classList.remove('hidden');
+                btnTable.classList.remove('bg-mu-purple', 'text-white');
+                btnTable.classList.add('bg-mu-dark', 'border', 'border-mu-border', 'text-gray-300');
+                btnGallery.classList.remove('bg-mu-dark', 'border', 'border-mu-border', 'text-gray-300');
+                btnGallery.classList.add('bg-mu-purple', 'text-white');
+                renderGallery(allItems);
+            } else {
+                tableView.classList.remove('hidden');
+                galleryView.classList.add('hidden');
+                btnGallery.classList.remove('bg-mu-purple', 'text-white');
+                btnGallery.classList.add('bg-mu-dark', 'border', 'border-mu-border', 'text-gray-300');
+                btnTable.classList.remove('bg-mu-dark', 'border', 'border-mu-border', 'text-gray-300');
+                btnTable.classList.add('bg-mu-purple', 'text-white');
+            }
+        }
+
+        function renderGallery(items) {
+            const grid = document.getElementById('galleryGrid');
+            const loading = document.getElementById('loadingGallery');
+            const noItems = document.getElementById('noGalleryItems');
+            
+            if (!items || items.length === 0) {
+                loading.classList.add('hidden');
+                grid.classList.add('hidden');
+                noItems.classList.remove('hidden');
+                return;
+            }
+            
+            loading.classList.add('hidden');
+            noItems.classList.add('hidden');
+            grid.classList.remove('hidden');
+            
+            // Group items by set name
+            const sets = {};
+            items.forEach(item => {
+                if (!sets[item.nombre_set]) {
+                    sets[item.nombre_set] = [];
+                }
+                sets[item.nombre_set].push(item);
+            });
+            
+            // Render each set card
+            grid.innerHTML = Object.keys(sets).map(setName => {
+                const setItems = sets[setName];
+                const allPieces = ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
+                const setNameForImage = setName.replace(/[^a-zA-Z0-9]/g, '');
+                
+                return `
+                    <div class="bg-slate-900/50 border border-mu-border rounded-xl p-4 relative">
+                        <button onclick="searchInMarket(0, '${setName}', '')" 
+                            class="absolute top-3 right-3 w-8 h-8 rounded-full bg-mu-dark border border-mu-border hover:border-mu-purple flex items-center justify-center text-sm">
+                            🔍
+                        </button>
+                        <div class="flex gap-4">
+                            <div class="w-32 h-32 flex-shrink-0 border border-mu-border rounded-lg overflow-hidden bg-mu-dark">
+                                <img src="/static/assets/Sets/${setNameForImage}.png" 
+                                     alt="${setName}"
+                                     class="w-full h-full object-contain p-2"
+                                     onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-white mb-1">${setName}</h3>
+                                <p class="text-sm text-gray-400 mb-3">🎁 Bonus Activo</p>
+                                <div class="space-y-1">
+                                    ${allPieces.map(piece => {
+                                        const item = setItems.find(i => i.pieza === piece);
+                                        const isObtained = item ? item.obtenido : false;
+                                        const itemId = item ? item.id : 0;
+                                        return `
+                                            <div class="flex items-center gap-2 text-sm">
+                                                <button onclick="${item ? `toggleObtenido(${itemId}, ${isObtained})` : ''}" 
+                                                    class="w-6 h-6 flex items-center justify-center rounded ${isObtained ? 'text-green-400' : 'text-red-500'}"
+                                                    ${!item ? 'disabled' : ''}>
+                                                    ${isObtained ? '✅' : '❌'}
+                                                </button>
+                                                <span class="${isObtained ? 'text-white' : 'text-red-400'}">${piece}</span>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadMasterSetsForAddItem() {
+            try {
+                const response = await fetch(`${API_URL}/api/sets/master`);
+                const data = await response.json();
+                const select = document.getElementById('itemSet');
+                select.innerHTML = '<option value="">Seleccionar set...</option>';
+                data.sets.forEach(set => {
+                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading master sets:', error);
+            }
+        }
+
+        async function loadSetsForFilter() {
+            try {
+                const response = await fetch(`${API_URL}/api/sets`);
+                const data = await response.json();
+                allSets = data.sets;
+                const select = document.getElementById('filterSet');
+                select.innerHTML = '<option value="Todos">Todos los Sets</option>';
+                allSets.forEach(set => {
+                    select.innerHTML += `<option value="${set}">${set}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading sets:', error);
+            }
+        }
+
+        async function loadItems() {
+            document.getElementById('loadingItems').classList.remove('hidden');
+            document.getElementById('loadingGallery').classList.remove('hidden');
+            document.getElementById('itemsTableBody').innerHTML = '';
+            try {
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/data`);
+                const data = await response.json();
+                allItems = data.items;
+                
+                // Sort: by set name A-Z, then by piece order (Helm->Armor->Pants->Gloves->Boots)
+                const piezaOrder = { 'Helm': 1, 'Armor': 2, 'Pants': 3, 'Gloves': 4, 'Boots': 5 };
+                allItems.sort((a, b) => {
+                    if (a.nombre_set !== b.nombre_set) {
+                        return a.nombre_set.localeCompare(b.nombre_set);
+                    }
+                    return (piezaOrder[a.pieza] || 99) - (piezaOrder[b.pieza] || 99);
+                });
+                
+                document.getElementById('loadingItems').classList.add('hidden');
+                document.getElementById('loadingGallery').classList.add('hidden');
+                updateStats();
+                applyFilters();
+                renderGallery(allItems);
+            } catch (error) {
+                console.error('Error loading items:', error);
+                document.getElementById('loadingItems').innerHTML = '<p class="text-red-400">Error al cargar items</p>';
+                document.getElementById('loadingGallery').innerHTML = '<p class="text-red-400">Error al cargar galería</p>';
+            }
+        }
+
+        function updateStats() {
+            const total = allItems.length;
+            const obtained = allItems.filter(i => i.obtenido).length;
+            const percent = total > 0 ? Math.round((obtained / total) * 100) : 0;
+            document.getElementById('progressText').textContent = `${obtained}/${total}`;
+            document.getElementById('progressBar').style.width = `${percent}%`;
+            document.getElementById('progressPercent').textContent = `${percent}%`;
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const estado = document.getElementById('filterEstado').value;
+            const tier = document.getElementById('filterTier').value;
+            const set = document.getElementById('filterSet').value;
+
+            let filtered = allItems.filter(item => {
+                if (search && !item.nombre_set.toLowerCase().includes(search) && !item.pieza.toLowerCase().includes(search)) return false;
+                if (estado === 'Pendientes' && item.obtenido) return false;
+                if (estado === 'Completados' && !item.obtenido) return false;
+                if (tier !== 'Todos' && item.kundun != parseInt(tier)) return false;
+                if (set !== 'Todos' && item.nombre_set !== set) return false;
+                return true;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(items) {
+            const tbody = document.getElementById('itemsTableBody');
+            const noItems = document.getElementById('noItems');
+            
+            if (items.length === 0) {
+                tbody.innerHTML = '';
+                noItems.classList.remove('hidden');
+                return;
+            }
+            
+            noItems.classList.add('hidden');
+            
+            tbody.innerHTML = items.map(item => `
+                <tr class="border-b border-mu-border hover:bg-mu-dark transition">
+                    <td class="text-center py-3 px-2">
+                        <button onclick="deleteItem(${item.id})" class="text-gray-500 hover:text-red-400 transition text-lg" title="Eliminar">🗑️</button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="searchInMarket(${item.id}, '${item.nombre_set}', '${item.pieza}')" class="text-gray-500 hover:text-blue-400 transition text-lg" title="Buscar en mercado">🔍</button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="toggleObtenido(${item.id}, ${item.obtenido})" 
+                            class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${item.obtenido ? 'bg-mu-green text-white' : 'bg-mu-red bg-opacity-80 text-white'}">
+                            ${item.obtenido ? '✅' : '❌'}
+                        </button>
+                    </td>
+                    <td class="py-3 px-3 font-medium text-white">${item.nombre_set}</td>
+                    <td class="py-3 px-3">${item.pieza}</td>
+                    <td class="text-center py-3 px-2">
+                        <select onchange="updateCampo(${item.id}, 'kundun', this.value)" class="px-2 py-1 rounded text-xs">
+                            ${[1,2,3,4,5].map(k => `<option value="${k}" ${item.kundun==k?'selected':''}>K${k}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <select onchange="updateCampo(${item.id}, 'nivel_bs', this.value)" class="px-2 py-1 rounded text-xs">
+                            ${Array.from({length:12}, (_,i) => `<option value="${i}" ${item.nivel_bs==i?'selected':''}>+${i}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <select onchange="updateCampo(${item.id}, 'add_lif', this.value)" class="px-2 py-1 rounded text-xs">
+                            ${Array.from({length:8}, (_,i) => `<option value="${i}" ${item.add_lif==i?'selected':''}>+${i}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'luck', ${item.luck ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.luck ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            LL
+                        </button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'opt_sd', ${item.opt_sd ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.opt_sd ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            SD
+                        </button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'opt_dd', ${item.opt_dd ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.opt_dd ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            DD
+                        </button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'opt_dsr', ${item.opt_dsr ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.opt_dsr ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            DSR
+                        </button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'opt_ref', ${item.opt_ref ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.opt_ref ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            REF
+                        </button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'opt_hp', ${item.opt_hp ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.opt_hp ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            HP
+                        </button>
+                    </td>
+                    <td class="text-center py-3 px-2">
+                        <button onclick="updateCampo(${item.id}, 'opt_zen', ${item.opt_zen ? 0 : 1})" 
+                            class="opt-btn w-10 py-1.5 rounded text-xs font-bold ${item.opt_zen ? 'bg-mu-red text-white' : 'bg-gray-800 text-gray-500 opacity-40'}">
+                            ZEN
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function updateCampo(itemId, campo, nuevoValor) {
+            try {
+                const response = await fetch(`${API_URL}/api/item/${itemId}/field?field=${campo}&value=${nuevoValor}`, {
+                    method: 'PUT'
+                });
+                if (response.ok) {
+                    const item = allItems.find(i => i.id === itemId);
+                    if (item) item[campo] = nuevoValor;
+                    updateStats();
+                    applyFilters();
+                }
+            } catch (error) {
+                console.error('Error updating field:', error);
+            }
+        }
+
+        async function toggleObtenido(itemId, currentValue) {
+            try {
+                const response = await fetch(`${API_URL}/api/item/${itemId}/toggle?obtenido=${!currentValue}`, {
+                    method: 'PUT'
+                });
+                if (response.ok) {
+                    const item = allItems.find(i => i.id === itemId);
+                    if (item) item.obtenido = !currentValue;
+                    updateStats();
+                    applyFilters();
+                }
+            } catch (error) {
+                console.error('Error toggling item:', error);
+            }
+        }
+
+        async function deleteItem(itemId) {
+            if (!confirm('¿Eliminar este item?')) return;
+            try {
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/item/${itemId}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    allItems = allItems.filter(i => i.id !== itemId);
+                    updateStats();
+                    applyFilters();
+                }
+            } catch (error) {
+                console.error('Error deleting item:', error);
+            }
+        }
+
+        function searchInMarket(itemId, set, pieza) {
+            window.open(`https://mudream.online/market?q=${encodeURIComponent(set + ' ' + pieza)}`, '_blank');
+        }
+
+        document.getElementById('addItemForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                user_id: parseInt(currentUserId),
+                nombre_set: document.getElementById('itemSet').value,
+                pieza: document.getElementById('itemPieza').value,
+                kundun: parseInt(document.getElementById('itemKundun').value),
+                luck: document.getElementById('optLuck').checked ? 1 : 0,
+                obtiene: 0,
+                enchant: parseInt(document.getElementById('itemEnchant').value),
+                life: parseInt(document.getElementById('itemLife').value),
+                sd: document.getElementById('optSD').checked ? 1 : 0,
+                dd: document.getElementById('optDD').checked ? 1 : 0,
+                dsr: document.getElementById('optDSR').checked ? 1 : 0,
+                ref: document.getElementById('optREF').checked ? 1 : 0,
+                hp: document.getElementById('optHP').checked ? 1 : 0,
+                zen: document.getElementById('optZEN').checked ? 1 : 0
+            };
+            try {
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/add_item`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    showMessage('addItemMessage', '¡Item añadido correctamente!');
+                    document.getElementById('addItemForm').reset();
+                    toggleSidebar();
+                    loadItems();
+                } else {
+                    showMessage('addItemMessage', 'Error al añadir item', true);
+                }
+            } catch (error) {
+                showMessage('addItemMessage', 'Error de conexión', true);
+            }
+        });
+    </script>
+</body>
+</html>
