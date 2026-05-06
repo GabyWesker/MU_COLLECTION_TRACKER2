@@ -48,19 +48,83 @@ EXCELLENT_OPTION_CODES = {
     "ref": {"ref", "rd"},
     "hp": {"hp", "iml"},
     "zen": {"zen", "izdr"},
+    "mana": {"mana", "imm"},
+}
+
+MARKET_OPTION_CODES = {
+    "sd": "imsd",
+    "dd": "dd",
+    "dsr": "dsr",
+    "ref": "rd",
+    "hp": "iml",
+    "zen": "izdr",
+    "mana": "imm",
 }
 
 def _market_option_values(options):
     values = set()
-    for option in options or []:
+
+    def add_value(value):
+        if value is None:
+            return
+        text = str(value).lower()
+        values.add(text)
+        for token in text.replace(",", " ").replace(";", " ").replace("|", " ").split():
+            values.add(token.strip("[](){}:"))
+        if text in {"rd", "ref"}:
+            values.update({"ref", "rd"})
+        if text in {"iml", "hp"}:
+            values.update({"hp", "iml"})
+        if text in {"imm", "mana"}:
+            values.update({"mana", "imm"})
+        if text in {"imsd", "sd"}:
+            values.update({"sd", "imsd"})
+        if text in {"izdr", "zen"}:
+            values.update({"zen", "izdr"})
+        if "reflect damage" in text:
+            values.update({"ref", "rd"})
+        if "defense success rate" in text:
+            values.add("dsr")
+        if "zen drop" in text:
+            values.update({"zen", "izdr"})
+        if "increase maximum life" in text or "increase max life" in text or "max hp" in text:
+            values.update({"hp", "iml"})
+        if "increase maximum mana" in text or "increase max mana" in text or "max mana" in text:
+            values.update({"mana", "imm"})
+        if "increase shield" in text or "increase sd" in text:
+            values.update({"sd", "imsd"})
+
+    if options is None:
+        iterable_options = []
+    elif isinstance(options, dict):
+        iterable_options = [options]
+    elif isinstance(options, (list, tuple, set)):
+        iterable_options = options
+    else:
+        iterable_options = [options]
+
+    for option in iterable_options:
         if isinstance(option, dict):
-            values.update(str(value).lower() for value in option.values() if value is not None)
+            for key, value in option.items():
+                add_value(key)
+                add_value(value)
+        elif isinstance(option, (list, tuple, set)):
+            values.update(_market_option_values(option))
         else:
-            values.add(str(option).lower())
+            add_value(option)
+    return values
+
+def _item_market_option_values(item):
+    values = set()
+    for key in ("options", "excellentOptions", "excellent_options", "opts"):
+        if key in item:
+            values.update(_market_option_values(item.get(key)))
     return values
 
 def _matches_required_options(item, excellent_options):
-    item_options = _market_option_values(item.get("options", []))
+    item_options = _item_market_option_values(item)
+    if not item_options:
+        return True
     for option in excellent_options:
         allowed_codes = EXCELLENT_OPTION_CODES.get(option, {option})
         if not item_options.intersection(allowed_codes):
@@ -420,13 +484,15 @@ def get_user_id_by_username(username):
 
 def search_market(item_name, luck=None, excellent_options=None):
     excellent_options = [opt for opt in (excellent_options or []) if opt in EXCELLENT_OPTION_CODES]
+    if not MU_API_TOKEN:
+        raise RuntimeError("MU_API_TOKEN no está configurado")
+
     headers = {}
-    if MU_API_TOKEN:
-        headers["Authorization"] = f"Bearer {MU_API_TOKEN}"
+    headers["Authorization"] = f"Bearer {MU_API_TOKEN}"
 
     option_codes = []
     for option in excellent_options:
-        option_codes.extend(sorted(EXCELLENT_OPTION_CODES[option]))
+        option_codes.append(MARKET_OPTION_CODES[option])
 
     params = {
         "query": item_name,
@@ -435,13 +501,12 @@ def search_market(item_name, luck=None, excellent_options=None):
     if luck is True:
         params["luck"] = "true"
     if option_codes:
-        params["options"] = ",".join(option_codes)
+        params["opts"] = ",".join(option_codes)
 
     try:
         response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
         if response.status_code != 200:
-            print(f"Error de API de mercado: {response.status_code}")
-            return []
+            raise RuntimeError(f"Error de API de mercado: {response.status_code}")
 
         data = response.json()
         items = data if isinstance(data, list) else data.get("items", [])
@@ -455,5 +520,5 @@ def search_market(item_name, luck=None, excellent_options=None):
         return results
     except Exception as e:
         print(f"Error consultando mercado: {e}")
-        return []
+        raise
 

@@ -136,7 +136,10 @@ async def get_user_data(user_id: int):
 @app.get("/search-items")
 async def search_items(query: str, luck: Optional[bool] = None, opts: Optional[str] = None):
     excellent_options = [opt.strip().lower() for opt in opts.split(",") if opt.strip()] if opts else []
-    return search_market(query, luck=luck, excellent_options=excellent_options)
+    try:
+        return search_market(query, luck=luck, excellent_options=excellent_options)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 @app.post("/api/user/{user_id}/create_set")
 async def create_set(user_id: int, req: CreateSetRequest):

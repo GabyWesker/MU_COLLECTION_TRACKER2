@@ -1109,7 +1109,14 @@
                 try {
                     const response = await fetch(`${API_URL}/search-items?${params.toString()}`);
                     if (!response.ok) {
-                        return {...group, loading: false, error: `Error de API: ${response.status}`};
+                        let detail = `Error de API: ${response.status}`;
+                        try {
+                            const errorData = await response.json();
+                            if (errorData.detail) detail = errorData.detail;
+                        } catch (parseError) {
+                            console.error('Error parsing market error:', parseError);
+                        }
+                        return {...group, loading: false, error: detail};
                     }
                     return {...group, loading: false, results: await response.json()};
                 } catch (error) {
