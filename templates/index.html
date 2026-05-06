@@ -215,6 +215,20 @@
         </div>
     </div>
 
+    <!-- Market Results Modal -->
+    <div id="marketOverlay" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 p-4 overflow-y-auto" onclick="closeMarketResults(event)">
+        <div class="max-w-3xl mx-auto my-8 bg-mu-card border border-mu-border rounded-xl shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center p-5 border-b border-mu-border">
+                <div>
+                    <h2 id="marketTitle" class="text-2xl font-bold text-white">🔍 Mercado</h2>
+                    <p id="marketSubtitle" class="text-sm text-gray-400 mt-1"></p>
+                </div>
+                <button onclick="closeMarketResults()" class="text-gray-400 hover:text-white text-2xl">×</button>
+            </div>
+            <div id="marketResults" class="p-5 space-y-4"></div>
+        </div>
+    </div>
+
     <!-- Sidebar -->
     <div id="sidebarOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-40" onclick="toggleSidebar()"></div>
     <div id="sidebar" class="sidebar fixed top-0 right-0 h-full w-full sm:w-96 bg-mu-card border-l border-mu-border z-50 transform translate-x-full overflow-y-auto">
@@ -966,8 +980,80 @@
             }
         }
 
-        function searchInMarket(itemId, set, pieza) {
-            window.open(`https://mudream.online/market?q=${encodeURIComponent(set + ' ' + pieza)}`, '_blank');
+        function closeMarketResults() {
+            document.getElementById('marketOverlay').classList.add('hidden');
+        }
+
+        function getItemExcellentOptions(item) {
+            if (!item) return [];
+            const options = [];
+            if (item.opt_dd) options.push('dd');
+            if (item.opt_dsr) options.push('dsr');
+            if (item.opt_ref) options.push('ref');
+            if (item.opt_hp) options.push('hp');
+            if (item.opt_zen) options.push('zen');
+            if (item.opt_sd) options.push('sd');
+            return options;
+        }
+
+        function renderMarketResults(title, results) {
+            const modal = document.getElementById('marketOverlay');
+            const titleEl = document.getElementById('marketTitle');
+            const content = document.getElementById('marketResults');
+            titleEl.textContent = title;
+            modal.classList.remove('hidden');
+
+            if (!results || results.length === 0) {
+                content.innerHTML = '<div class="text-center text-gray-400 py-8">No se encontraron coincidencias exactas.</div>';
+                return;
+            }
+
+            content.innerHTML = results.map(result => {
+                const name = escapeHtml(result.name || 'Item sin nombre');
+                const level = result.level ?? 0;
+                const gearScore = result.gearScore ?? '-';
+                const options = Array.isArray(result.options) ? result.options : [];
+                const optionText = options.length ? options.map(opt => escapeHtml(typeof opt === 'object' ? Object.values(opt).join(' ') : opt)).join(', ') : 'Sin opciones';
+                const prices = Array.isArray(result.prices) ? result.prices : [];
+                const priceText = prices.length
+                    ? prices.map(price => `${escapeHtml(price.currency || '')}: ${escapeHtml(price.amount ?? '')}`).join(' | ')
+                    : 'Sin precios publicados';
+                const imageUrl = escapeHtml(result.imageUrl || 'https://muonline.webzen.com/img/common/logo.png');
+
+                return `
+                    <div class="bg-mu-dark border border-mu-border rounded-lg p-4 flex gap-4">
+                        <img src="${imageUrl}" alt="${name}" class="w-16 h-16 object-contain bg-black/30 rounded" onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
+                        <div class="flex-1">
+                            <h4 class="text-lg font-bold text-white">${name} +${escapeHtml(level)}</h4>
+                            <p class="text-sm text-gray-400">GS: ${escapeHtml(gearScore)} | Opciones: ${optionText}</p>
+                            <p class="mt-2 text-sm text-green-300">💰 ${priceText}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function searchInMarket(itemId, set, pieza) {
+            const item = allItems.find(i => i.id === itemId);
+            const searchTerm = `${set} ${pieza || ''}`.trim();
+            const params = new URLSearchParams({query: searchTerm});
+            const excellentOptions = getItemExcellentOptions(item);
+
+            if (item && item.luck) params.set('luck', 'true');
+            if (excellentOptions.length) params.set('opts', excellentOptions.join(','));
+
+            document.getElementById('marketOverlay').classList.remove('hidden');
+            document.getElementById('marketTitle').textContent = `🔍 Mercado: ${searchTerm}`;
+            document.getElementById('marketResults').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-mu-purple"></div></div>';
+
+            try {
+                const response = await fetch(`${API_URL}/search-items?${params.toString()}`);
+                const results = response.ok ? await response.json() : [];
+                renderMarketResults(`🔍 Mercado: ${searchTerm}`, results);
+            } catch (error) {
+                console.error('Error searching market:', error);
+                document.getElementById('marketResults').innerHTML = '<div class="text-center text-red-400 py-8">Error de conexión con el mercado.</div>';
+            }
         }
 
         document.getElementById('addItemForm').addEventListener('submit', async (e) => {
