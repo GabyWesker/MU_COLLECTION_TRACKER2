@@ -153,6 +153,20 @@
                 </div>
             </div>
 
+            <!-- Active Set Bonuses -->
+            <div id="bonusPanel" class="hidden bg-mu-card border border-mu-border rounded-xl p-5 mb-6">
+                <div class="flex flex-col lg:flex-row gap-5">
+                    <div class="lg:w-1/2">
+                        <h3 class="text-lg font-bold text-white mb-3">🎁 Bonus activos</h3>
+                        <div id="activeBonusList" class="space-y-2"></div>
+                    </div>
+                    <div class="lg:w-1/2">
+                        <h3 class="text-lg font-bold text-white mb-3">📈 Total acumulado</h3>
+                        <div id="bonusTotals" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+                    </div>
+                </div>
+            </div>
+
             <!-- View Toggle Buttons -->
             <div class="flex gap-2 mb-6">
                 <button onclick="switchView('table')" id="btnTableView" class="flex-1 sm:flex-none px-6 py-2.5 rounded-lg font-semibold transition bg-mu-purple text-white">
@@ -392,6 +406,50 @@
         let currentUsername = localStorage.getItem('username');
         let allItems = [];
         let allSets = [];
+
+        const BONUS_STATS = {
+            hp: { label: 'HP', unit: '' },
+            atk_speed: { label: 'Atk Speed', unit: '' },
+            increase_dmg: { label: 'Increase Dmg', unit: '%' },
+            increase_def: { label: 'Increase Def', unit: '%' },
+            ignore: { label: 'Ignore', unit: '%' },
+            sd: { label: 'SD', unit: '%' },
+            dd: { label: 'DD', unit: '%' },
+            exce_dmg: { label: 'Exce Dmg', unit: '%' },
+            reflect: { label: 'Reflect', unit: '%' }
+        };
+
+        const SET_BONUSES = {
+            'Pad': { hp: 1000 },
+            'Leather': { hp: 1000 },
+            'Vine': { hp: 1000 },
+            'Bronze': { atk_speed: 15 },
+            'Silk': { atk_speed: 20 },
+            'Bone': { increase_dmg: 2 },
+            'Scale': { increase_dmg: 4 },
+            'Wind': { increase_def: 2 },
+            'Violent Wind': { ignore: 1 },
+            'Sphinx': { hp: 1500 },
+            'Brass': { sd: 2 },
+            'Spirit': { increase_dmg: 3 },
+            'Plate': { dd: 1 },
+            'Legendary': { increase_def: 3 },
+            'Red Winged': { hp: 1500 },
+            'Guardian': { atk_speed: 25 },
+            'Dragon': { hp: 1500 },
+            'Light Plate': { exce_dmg: 2 },
+            'Sacred Fire': { increase_def: 5 },
+            'Ancient': { dd: 2 },
+            'Adamantine': { hp: 1500 },
+            'Storm Crow': { exce_dmg: 4 },
+            'Storm Zahard': { hp: 2000 },
+            'Black Dragon': { atk_speed: 30 },
+            'Demonic': { reflect: 2 },
+            'Grand Soul': { increase_def: 5 },
+            'Holy Spirit': { dd: 2 },
+            'Dark Steel': { hp: 2000 },
+            'Dark Phoenix': { sd: 6 }
+        };
 
         function toggleSetSidebar() {
             const sidebar = document.getElementById('setSidebar');
@@ -799,6 +857,7 @@
                 document.getElementById('loadingItems').classList.add('hidden');
                 document.getElementById('loadingGallery').classList.add('hidden');
                 updateStats();
+                renderBonusSummary();
                 applyFilters();
                 renderGallery(allItems);
             } catch (error) {
@@ -815,6 +874,83 @@
             document.getElementById('progressText').textContent = `${obtained}/${total}`;
             document.getElementById('progressBar').style.width = `${percent}%`;
             document.getElementById('progressPercent').textContent = `${percent}%`;
+        }
+
+        function getRequiredPieces(setName) {
+            const setsSinHelm = new Set(['Storm Crow', 'Thunder Hawk', 'Sacred Fire', 'Storm Zahard']);
+            const setsSinGuantes = new Set();
+            if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
+            if (setsSinGuantes.has(setName)) return ['Helm', 'Armor', 'Pants', 'Boots'];
+            return ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
+        }
+
+        function formatBonus(stat, value) {
+            const meta = BONUS_STATS[stat] || {label: stat, unit: ''};
+            return `+${value}${meta.unit} ${meta.label}`;
+        }
+
+        function getActiveSetBonuses(items) {
+            const grouped = {};
+            items.forEach(item => {
+                if (!grouped[item.nombre_set]) grouped[item.nombre_set] = [];
+                grouped[item.nombre_set].push(item);
+            });
+
+            return Object.entries(SET_BONUSES)
+                .filter(([setName]) => {
+                    const setItems = grouped[setName] || [];
+                    const requiredPieces = getRequiredPieces(setName);
+                    return requiredPieces.every(piece => {
+                        const item = setItems.find(i => i.pieza === piece);
+                        return item && Boolean(item.obtenido);
+                    });
+                })
+                .map(([setName, bonuses]) => ({setName, bonuses}));
+        }
+
+        function renderBonusSummary(items) {
+            const panel = document.getElementById('bonusPanel');
+            const totalsEl = document.getElementById('bonusTotals');
+            const setsEl = document.getElementById('activeBonusList');
+            const activeBonuses = getActiveSetBonuses(items);
+            const totals = {};
+
+            activeBonuses.forEach(({bonuses}) => {
+                Object.entries(bonuses).forEach(([stat, value]) => {
+                    totals[stat] = (totals[stat] || 0) + value;
+                });
+            });
+
+            panel.classList.remove('hidden');
+
+            if (activeBonuses.length === 0) {
+                totalsEl.innerHTML = '';
+                setsEl.innerHTML = `
+                    <div class="bg-mu-dark border border-mu-border rounded-lg px-3 py-3 text-sm text-gray-400">
+                        Todavía no hay sets completos con bonus activo.
+                    </div>
+                `;
+                return;
+            }
+
+            totalsEl.innerHTML = Object.entries(totals).map(([stat, value]) => `
+                <div class="bg-mu-dark border border-mu-border rounded-lg px-3 py-2">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide">Total ${escapeHtml(BONUS_STATS[stat]?.label || stat)}</p>
+                    <p class="text-lg font-bold text-green-300">${escapeHtml(formatBonus(stat, value))}</p>
+                </div>
+            `).join('');
+
+            setsEl.innerHTML = activeBonuses.map(({setName, bonuses}) => {
+                const bonusText = Object.entries(bonuses)
+                    .map(([stat, value]) => formatBonus(stat, value))
+                    .join(' / ');
+                return `
+                    <div class="flex items-center justify-between gap-3 bg-slate-950/50 border border-mu-border rounded-lg px-3 py-2">
+                        <span class="font-semibold text-white">${escapeHtml(setName)}</span>
+                        <span class="text-sm text-amber-300">${escapeHtml(bonusText)}</span>
+                    </div>
+                `;
+            }).join('');
         }
 
         function applyFilters() {
@@ -939,6 +1075,7 @@
                     const item = allItems.find(i => i.id === itemId);
                     if (item) item[campo] = nuevoValor;
                     updateStats();
+                    renderBonusSummary();
                     applyFilters();
                 }
             } catch (error) {
@@ -955,6 +1092,7 @@
                     const item = allItems.find(i => i.id === itemId);
                     if (item) item.obtenido = !currentValue;
                     updateStats();
+                    renderBonusSummary();
                     applyFilters();
                 }
             } catch (error) {
@@ -971,6 +1109,7 @@
                 if (response.ok) {
                     allItems = allItems.filter(i => i.id !== itemId);
                     updateStats();
+                    renderBonusSummary();
                     applyFilters();
                 }
             } catch (error) {
