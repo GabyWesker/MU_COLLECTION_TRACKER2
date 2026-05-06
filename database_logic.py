@@ -1,5 +1,6 @@
 ﻿import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import bcrypt
 import pandas as pd
@@ -9,7 +10,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 NEON_CONN = os.environ.get("NEON_CONN")
-MU_API_URL = os.environ.get("MU_API_URL", "https://mudream-api.crusoft.dev/api/game/market/items")
+DEFAULT_MU_API_URL = "https://mudream-api.crusoft.dev/api/game/market/items"
+MU_API_URL = os.environ.get("MU_API_URL", DEFAULT_MU_API_URL)
 MU_API_TOKEN = os.environ.get("MU_API_TOKEN")
 BASE_DIR = Path(__file__).resolve().parent
 SETS_ASSETS_DIR = BASE_DIR / "static" / "assets" / "Sets"
@@ -130,6 +132,38 @@ def _matches_required_options(item, excellent_options):
         if not item_options.intersection(allowed_codes):
             return False
     return True
+
+def _item_has_luck(item):
+    if "hasLuck" in item:
+        return bool(item.get("hasLuck"))
+    if "luck" in item:
+        return bool(item.get("luck"))
+    item_options = _item_market_option_values(item)
+    if "luck" in item_options:
+        return True
+    # If the API does not expose luck in a parseable field, avoid false negatives.
+    return True
+
+def _get_market_api_url():
+    parsed = urlparse(MU_API_URL)
+    if parsed.path in ("", "/"):
+        return MU_API_URL.rstrip("/") + "/api/game/market/items"
+    return MU_API_URL
+
+def _market_items_from_response(data):
+    if isinstance(data, list):
+        return data
+    if not isinstance(data, dict):
+        return []
+    for key in ("items", "data", "results"):
+        value = data.get(key)
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            nested = _market_items_from_response(value)
+            if nested:
+                return nested
+    return []
 
 def get_connection():
     if not NEON_CONN:
@@ -487,32 +521,40 @@ def search_market(item_name, luck=None, excellent_options=None):
     if not MU_API_TOKEN:
         raise RuntimeError("MU_API_TOKEN no está configurado")
 
-    headers = {}
-    headers["Authorization"] = f"Bearer {MU_API_TOKEN}"
+    headers = {"Authorization": f"Bearer {MU_API_TOKEN}"}
 
     option_codes = []
     for option in excellent_options:
         option_codes.append(MARKET_OPTION_CODES[option])
 
-    params = {
-        "query": item_name,
-        "limit": 30,
-    }
-    if luck is True:
-        params["luck"] = "true"
-    if option_codes:
-        params["opts"] = ",".join(option_codes)
+    def build_params(include_luck=True, include_options=True):
+        params = {
+            "query": item_name,
+            "limit": 30,
+        }
+        if include_luck and luck is True:
+            params["luck"] = "true"
+        if include_options and option_codes:
+            params["opts"] = ",".join(option_codes)
+        return params
 
-    try:
-        response = requests.get(MU_API_URL, headers=headers, params=params, timeout=10)
+    def request_items(params):
+        response = requests.get(_get_market_api_url(), headers=headers, params=params, timeout=10)
+        if response.status_code == 404:
+            return []
         if response.status_code != 200:
             raise RuntimeError(f"Error de API de mercado: {response.status_code}")
+        return _market_items_from_response(response.json())
 
-        data = response.json()
-        items = data if isinstance(data, list) else data.get("items", [])
+    try:
+        items = request_items(build_params())
+        if not items and (luck is True or option_codes):
+            # Some market API versions return 404/empty for exact opts filters.
+            # Broaden the remote search, then apply the saved set filters locally.
+            items = request_items(build_params(include_luck=False, include_options=False))
         results = []
         for item in items:
-            if luck is True and not item.get("hasLuck", item.get("luck", False)):
+            if luck is True and not _item_has_luck(item):
                 continue
             if excellent_options and not _matches_required_options(item, excellent_options):
                 continue
