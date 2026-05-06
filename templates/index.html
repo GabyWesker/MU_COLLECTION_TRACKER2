@@ -212,20 +212,18 @@
                     <!-- Gallery cards will be rendered here by JS -->
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Market Results Modal -->
-    <div id="marketOverlay" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 p-4 overflow-y-auto" onclick="closeMarketResults(event)">
-        <div class="max-w-3xl mx-auto my-8 bg-mu-card border border-mu-border rounded-xl shadow-2xl" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center p-5 border-b border-mu-border">
-                <div>
-                    <h2 id="marketTitle" class="text-2xl font-bold text-white">🔍 Mercado</h2>
-                    <p id="marketSubtitle" class="text-sm text-gray-400 mt-1"></p>
+            <!-- Market Results (inline) -->
+            <div id="marketPanel" class="hidden mt-6 bg-mu-card border border-mu-border rounded-xl overflow-hidden">
+                <div class="flex justify-between items-center p-5 border-b border-mu-border bg-mu-dark">
+                    <div>
+                        <h2 id="marketTitle" class="text-xl font-bold text-white">🔍 Mercado</h2>
+                        <p id="marketSubtitle" class="text-sm text-gray-400 mt-1"></p>
+                    </div>
+                    <button onclick="closeMarketResults()" class="text-gray-400 hover:text-white text-2xl">×</button>
                 </div>
-                <button onclick="closeMarketResults()" class="text-gray-400 hover:text-white text-2xl">×</button>
+                <div id="marketResults" class="p-4 space-y-3"></div>
             </div>
-            <div id="marketResults" class="p-5 space-y-4"></div>
         </div>
     </div>
 
@@ -980,10 +978,6 @@
             }
         }
 
-        function closeMarketResults() {
-            document.getElementById('marketOverlay').classList.add('hidden');
-        }
-
         function getItemExcellentOptions(item) {
             if (!item) return [];
             const options = [];
@@ -996,64 +990,135 @@
             return options;
         }
 
-        function renderMarketResults(title, results) {
-            const modal = document.getElementById('marketOverlay');
-            const titleEl = document.getElementById('marketTitle');
-            const content = document.getElementById('marketResults');
-            titleEl.textContent = title;
-            modal.classList.remove('hidden');
-
-            if (!results || results.length === 0) {
-                content.innerHTML = '<div class="text-center text-gray-400 py-8">No se encontraron coincidencias exactas.</div>';
-                return;
+        function getMarketTargets(itemId, set, pieza) {
+            if (itemId) {
+                const item = allItems.find(i => i.id === itemId);
+                return item ? [item] : [];
             }
 
-            content.innerHTML = results.map(result => {
-                const name = escapeHtml(result.name || 'Item sin nombre');
-                const level = result.level ?? 0;
-                const gearScore = result.gearScore ?? '-';
-                const options = Array.isArray(result.options) ? result.options : [];
-                const optionText = options.length ? options.map(opt => escapeHtml(typeof opt === 'object' ? Object.values(opt).join(' ') : opt)).join(', ') : 'Sin opciones';
-                const prices = Array.isArray(result.prices) ? result.prices : [];
-                const priceText = prices.length
-                    ? prices.map(price => `${escapeHtml(price.currency || '')}: ${escapeHtml(price.amount ?? '')}`).join(' | ')
-                    : 'Sin precios publicados';
-                const imageUrl = escapeHtml(result.imageUrl || 'https://muonline.webzen.com/img/common/logo.png');
+            const pieceOrder = {Helm: 1, Armor: 2, Pants: 3, Gloves: 4, Boots: 5};
+            const setItems = allItems
+                .filter(item => item.nombre_set === set && (!pieza || item.pieza === pieza))
+                .sort((a, b) => (pieceOrder[a.pieza] || 99) - (pieceOrder[b.pieza] || 99));
+
+            const pendingItems = setItems.filter(item => !item.obtenido);
+            if (pendingItems.length > 0) return pendingItems;
+            if (setItems.length > 0) return setItems;
+            return [{nombre_set: set, pieza: pieza || '', luck: false}];
+        }
+
+        function closeMarketResults() {
+            document.getElementById('marketPanel').classList.add('hidden');
+        }
+
+        function describeMarketFilters(item) {
+            const filters = [];
+            if (item && item.luck) filters.push('Luck');
+            filters.push(...getItemExcellentOptions(item).map(opt => opt.toUpperCase()));
+            return filters.length ? filters.join(', ') : 'Sin opciones excelentes';
+        }
+
+        function renderMarketResultCard(result) {
+            const name = escapeHtml(result.name || 'Item sin nombre');
+            const level = result.level ?? 0;
+            const gearScore = result.gearScore ?? '-';
+            const options = Array.isArray(result.options) ? result.options : [];
+            const optionText = options.length
+                ? options.map(opt => escapeHtml(typeof opt === 'object' ? Object.values(opt).join(' ') : opt)).join(', ')
+                : 'Sin opciones';
+            const prices = Array.isArray(result.prices) ? result.prices : [];
+            const priceText = prices.length
+                ? prices.map(price => `${escapeHtml(price.currency || '')}: ${escapeHtml(price.amount ?? '')}`).join(' | ')
+                : 'Sin precios publicados';
+            const imageUrl = escapeHtml(result.imageUrl || 'https://muonline.webzen.com/img/common/logo.png');
+
+            return `
+                <div class="border border-mu-border rounded-lg p-4 flex gap-4 bg-mu-dark">
+                    <img src="${imageUrl}" alt="${name}" class="w-16 h-16 object-contain bg-black/30 rounded" onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
+                    <div class="flex-1">
+                        <h4 class="text-sm font-bold text-white">${name} +${escapeHtml(level)}</h4>
+                        <p class="text-xs text-gray-400 mt-1">GS: ${escapeHtml(gearScore)} | Opciones: ${optionText}</p>
+                        <p class="mt-2 text-xs text-green-300">💰 ${priceText}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMarketGroups(title, groups) {
+            const panel = document.getElementById('marketPanel');
+            const titleEl = document.getElementById('marketTitle');
+            const subtitle = document.getElementById('marketSubtitle');
+            const content = document.getElementById('marketResults');
+            titleEl.textContent = title;
+            subtitle.textContent = `${groups.length} búsqueda${groups.length === 1 ? '' : 's'} con las opciones cargadas en tu set`;
+            panel.classList.remove('hidden');
+
+            content.innerHTML = groups.map(group => {
+                const safeQuery = escapeHtml(group.query);
+                const safeFilters = escapeHtml(group.filters);
+                let body = '';
+
+                if (group.loading) {
+                    body = '<div class="text-center py-6"><div class="inline-block animate-spin rounded-full h-7 w-7 border-b-2 border-mu-purple"></div></div>';
+                } else if (group.error) {
+                    body = `<div class="text-red-300 bg-red-950/40 border border-red-900 rounded-lg p-3 text-sm">${escapeHtml(group.error)}</div>`;
+                } else if (!group.results || group.results.length === 0) {
+                    body = '<div class="text-blue-300 bg-blue-950/40 border border-blue-900 rounded-lg p-3 text-sm">No se encontraron items en el mercado</div>';
+                } else {
+                    body = `
+                        <p class="text-sm text-amber-300 mb-3">${group.results.length} resultado${group.results.length === 1 ? '' : 's'} encontrado${group.results.length === 1 ? '' : 's'}</p>
+                        <div class="space-y-3">
+                            ${group.results.map(renderMarketResultCard).join('')}
+                        </div>
+                    `;
+                }
 
                 return `
-                    <div class="bg-mu-dark border border-mu-border rounded-lg p-4 flex gap-4">
-                        <img src="${imageUrl}" alt="${name}" class="w-16 h-16 object-contain bg-black/30 rounded" onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
-                        <div class="flex-1">
-                            <h4 class="text-lg font-bold text-white">${name} +${escapeHtml(level)}</h4>
-                            <p class="text-sm text-gray-400">GS: ${escapeHtml(gearScore)} | Opciones: ${optionText}</p>
-                            <p class="mt-2 text-sm text-green-300">💰 ${priceText}</p>
-                        </div>
-                    </div>
+                    <details open class="bg-slate-950/50 border border-mu-border rounded-lg overflow-hidden">
+                        <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-white hover:bg-mu-dark">
+                            🔍 Buscar en Mercado: ${safeQuery}
+                            <span class="ml-2 text-xs text-gray-400">Filtros: ${safeFilters}</span>
+                        </summary>
+                        <div class="p-4 space-y-3">${body}</div>
+                    </details>
                 `;
             }).join('');
         }
 
         async function searchInMarket(itemId, set, pieza) {
-            const item = allItems.find(i => i.id === itemId);
-            const searchTerm = `${set} ${pieza || ''}`.trim();
-            const params = new URLSearchParams({query: searchTerm});
-            const excellentOptions = getItemExcellentOptions(item);
+            const targets = getMarketTargets(itemId, set, pieza);
+            const title = `🛒 Mercado: ${set}${pieza ? ` ${pieza}` : ''}`;
+            const groups = targets.map(item => ({
+                item,
+                query: `${item.nombre_set || set} ${item.pieza || pieza || ''}`.trim(),
+                filters: describeMarketFilters(item),
+                loading: true,
+                results: []
+            }));
 
-            if (item && item.luck) params.set('luck', 'true');
-            if (excellentOptions.length) params.set('opts', excellentOptions.join(','));
+            renderMarketGroups(title, groups);
+            document.getElementById('marketPanel').scrollIntoView({behavior: 'smooth', block: 'start'});
 
-            document.getElementById('marketOverlay').classList.remove('hidden');
-            document.getElementById('marketTitle').textContent = `🔍 Mercado: ${searchTerm}`;
-            document.getElementById('marketResults').innerHTML = '<div class="text-center py-8"><div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-mu-purple"></div></div>';
+            const resolvedGroups = await Promise.all(groups.map(async group => {
+                const params = new URLSearchParams({query: group.query});
+                const excellentOptions = getItemExcellentOptions(group.item);
 
-            try {
-                const response = await fetch(`${API_URL}/search-items?${params.toString()}`);
-                const results = response.ok ? await response.json() : [];
-                renderMarketResults(`🔍 Mercado: ${searchTerm}`, results);
-            } catch (error) {
-                console.error('Error searching market:', error);
-                document.getElementById('marketResults').innerHTML = '<div class="text-center text-red-400 py-8">Error de conexión con el mercado.</div>';
-            }
+                if (group.item && group.item.luck) params.set('luck', 'true');
+                if (excellentOptions.length) params.set('opts', excellentOptions.join(','));
+
+                try {
+                    const response = await fetch(`${API_URL}/search-items?${params.toString()}`);
+                    if (!response.ok) {
+                        return {...group, loading: false, error: `Error de API: ${response.status}`};
+                    }
+                    return {...group, loading: false, results: await response.json()};
+                } catch (error) {
+                    console.error('Error searching market:', error);
+                    return {...group, loading: false, error: 'Error de conexión con el mercado.'};
+                }
+            }));
+
+            renderMarketGroups(title, resolvedGroups);
         }
 
         document.getElementById('addItemForm').addEventListener('submit', async (e) => {
