@@ -30,18 +30,48 @@ ALLOWED_UPDATE_FIELDS = {
     "opt_zen",
 }
 
-BASE_MASTER_SETS = [
-    "Leather",
+# Catálogo oficial de sets (orden de referencia). Nombres exactos en BD / UI.
+CANONICAL_SET_NAMES = (
     "Pad",
-    "Scale",
-    "Sphinx",
-    "Plate",
-    "Spirit",
-    "Legendary",
-    "Adamantine",
-    "Black Dragon",
+    "Leather",
+    "Vine",
+    "Bronze",
+    "Silk",
     "Bone",
-]
+    "Scale",
+    "Wind",
+    "Violent Wind",
+    "Sphinx",
+    "Brass",
+    "Spirit",
+    "Plate",
+    "Legendary",
+    "Red Winged",
+    "Guardian",
+    "Dragon",
+    "Light Plate",
+    "Sacred Fire",
+    "Ancient",
+    "Adamantine",
+    "Storm Crow",
+    "Storm Zahard",
+    "Black Dragon",
+    "Demonic",
+    "Grand Soul",
+    "Holy Spirit",
+    "Dark Steel",
+    "Dark Phoenix",
+)
+
+BASE_MASTER_SETS = list(CANONICAL_SET_NAMES)
+
+# Clave en minúsculas → nombre canónico exacto (typos que no resuelve el match por casing).
+SET_NAME_ALIASES = {
+    "sphinix": "Sphinx",
+    "shpinx": "Sphinx",
+}
+
+_CANONICAL_BY_LOWER = {name.lower(): name for name in CANONICAL_SET_NAMES}
 
 EXCELLENT_OPTION_CODES = {
     "sd": {"sd", "imsd"},
@@ -285,6 +315,38 @@ def update_personaje(user_id, personaje):
         conn.close()
         return False
 
+PIEZA_ORDER_SQL = (
+    "CASE pieza WHEN 'Helm' THEN 1 WHEN 'Armor' THEN 2 WHEN 'Pants' THEN 3 "
+    "WHEN 'Gloves' THEN 4 WHEN 'Boots' THEN 5 ELSE 99 END"
+)
+
+_ITEM_ROW_DEFAULTS = {
+    "nombre_set": "",
+    "pieza": "",
+    "kundun": 0,
+    "obtenido": False,
+    "luck": False,
+    "nivel_bs": 0,
+    "add_lif": 0,
+    "opt_sd": False,
+    "opt_dd": False,
+    "opt_dsr": False,
+    "opt_ref": False,
+    "opt_hp": False,
+    "opt_zen": False,
+}
+
+
+def _df_item_records(df):
+    if df.empty:
+        return []
+    safe_df = df.copy()
+    for column, default in _ITEM_ROW_DEFAULTS.items():
+        if column in safe_df.columns:
+            safe_df[column] = safe_df[column].fillna(default)
+    return safe_df.to_dict(orient="records")
+
+
 def load_data(user_id):
     conn = get_connection()
     if not conn:
@@ -299,18 +361,240 @@ def load_data(user_id):
         conn.close()
         return pd.DataFrame(), pd.DataFrame()
 
-def get_all_sets():
+
+def get_user_items_for_set(user_id, nombre_set):
+    """Todas las piezas de un set (p. ej. búsqueda en mercado); máx. ~5 filas."""
     conn = get_connection()
     if not conn:
-        return get_master_sets()
+        return []
     try:
-        df = pd.read_sql("SELECT DISTINCT nombre_set FROM sets ORDER BY nombre_set", conn)
+        order_by = f"ORDER BY {PIEZA_ORDER_SQL}"
+        df = pd.read_sql(
+            f"SELECT * FROM sets WHERE user_id = %s AND nombre_set = %s {order_by}",
+            conn,
+            params=(user_id, nombre_set),
+        )
         conn.close()
-        return df["nombre_set"].dropna().tolist()
+        return _df_item_records(df)
     except Exception as e:
-        print(f"Error al cargar sets: {e}")
+        print(f"Error get_user_items_for_set: {e}")
         conn.close()
-        return get_master_sets()
+        return []
+
+
+def load_user_data_bundle(
+    user_id,
+    page=1,
+    page_size=20,
+    search=None,
+    estado=None,
+    tier=None,
+    set_name=None,
+):
+    """
+    Items paginados (filas completas) + listado ligero de todas las piezas del usuario
+    para bonus / galería sin enviar todos los campos en cada fila.
+    """
+    empty = {
+        "items": [],
+        "items_light": [],
+        "premios": [],
+        "total": 0,
+        "obtained_count": 0,
+        "filtered_total": 0,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": 1,
+    }
+
+    conn = get_connection()
+    if not conn:
+        return empty
+
+    page_size = max(1, min(int(page_size), 100))
+    page = max(1, int(page))
+    offset = (page - 1) * page_size
+
+    conditions = ["user_id = %s"]
+    params = [user_id]
+
+    if search and str(search).strip():
+        term = f"%{search.strip()}%"
+        conditions.append("(nombre_set ILIKE %s OR pieza ILIKE %s)")
+        params.extend([term, term])
+
+    if estado == "Pendientes":
+        conditions.append("(obtenido = FALSE OR obtenido IS NULL)")
+    elif estado == "Completados":
+        conditions.append("obtenido = TRUE")
+
+    if tier and tier != "Todos":
+        conditions.append("kundun = %s")
+        params.append(int(tier))
+
+    if set_name and set_name != "Todos":
+        conditions.append("nombre_set = %s")
+        params.append(set_name)
+
+    where_sql = " AND ".join(conditions)
+    order_by = f"ORDER BY nombre_set ASC, {PIEZA_ORDER_SQL}"
+
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM sets WHERE user_id = %s", (user_id,))
+        total_all = cur.fetchone()[0]
+
+        cur.execute(
+            "SELECT COUNT(*) FROM sets WHERE user_id = %s AND obtenido IS TRUE",
+            (user_id,),
+        )
+        obtained_all = cur.fetchone()[0]
+
+        cur.execute(f"SELECT COUNT(*) FROM sets WHERE {where_sql}", params)
+        filtered_total = cur.fetchone()[0]
+        cur.close()
+
+        page_df = pd.read_sql(
+            f"SELECT * FROM sets WHERE {where_sql} {order_by} LIMIT %s OFFSET %s",
+            conn,
+            params=params + [page_size, offset],
+        )
+
+        light_df = pd.read_sql(
+            f"SELECT id, nombre_set, pieza, obtenido FROM sets WHERE user_id = %s {order_by}",
+            conn,
+            params=(user_id,),
+        )
+        df_premios = pd.read_sql("SELECT * FROM premios_sets", conn)
+
+        conn.close()
+
+        items = _df_item_records(page_df)
+        light_records = _df_item_records(light_df)
+        for row in light_records:
+            if "obtenido" in row:
+                row["obtenido"] = bool(row["obtenido"])
+
+        premios_records = []
+        if not df_premios.empty:
+            premios_records = df_premios.fillna("").to_dict(orient="records")
+
+        total_pages = (
+            max(1, (filtered_total + page_size - 1) // page_size)
+            if filtered_total
+            else 1
+        )
+
+        return {
+            "items": items,
+            "items_light": light_records,
+            "premios": premios_records,
+            "total": int(total_all),
+            "obtained_count": int(obtained_all),
+            "filtered_total": int(filtered_total),
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+        }
+    except Exception as e:
+        print(f"Error load_user_data_bundle: {e}")
+        conn.close()
+        return empty
+
+def resolve_canonical_set_name(raw):
+    """Devuelve el nombre canónico o None si no pertenece al catálogo."""
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    lowered = text.lower()
+    if lowered in SET_NAME_ALIASES:
+        return SET_NAME_ALIASES[lowered]
+    return _CANONICAL_BY_LOWER.get(lowered)
+
+
+def get_all_sets():
+    """Lista para catálogos globales: solo maestro, sin mezclar filas de usuarios."""
+    return get_master_sets()
+
+
+def reconcile_user_sets(username):
+    """
+    Normaliza nombre_set al catálogo, borra sets no canónicos y fusiona duplicados
+    (mismo user, set y pieza). Devuelve un dict con contadores.
+    """
+    user_id = get_user_id_by_username(username)
+    if not user_id:
+        return {"error": "usuario no encontrado", "username": username}
+
+    conn = get_connection()
+    if not conn:
+        return {"error": "sin conexión"}
+
+    stats = {
+        "username": username,
+        "user_id": user_id,
+        "deleted_non_canonical": 0,
+        "updated_names": 0,
+        "merged_duplicate_rows": 0,
+    }
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, nombre_set, pieza, obtenido FROM sets WHERE user_id = %s",
+            (user_id,),
+        )
+        rows = cur.fetchall()
+
+        ids_delete = []
+        id_updates = []
+
+        for row_id, nombre_set, pieza, obtenido in rows:
+            canon = resolve_canonical_set_name(nombre_set)
+            if canon is None:
+                ids_delete.append(row_id)
+            elif canon != nombre_set:
+                id_updates.append((canon, row_id))
+
+        for row_id in ids_delete:
+            cur.execute("DELETE FROM sets WHERE id = %s", (row_id,))
+        stats["deleted_non_canonical"] = len(ids_delete)
+
+        for canon, row_id in id_updates:
+            cur.execute("UPDATE sets SET nombre_set = %s WHERE id = %s", (canon, row_id))
+        stats["updated_names"] = len(id_updates)
+
+        cur.execute(
+            """
+            SELECT nombre_set, pieza, array_agg(id ORDER BY obtenido DESC, id DESC) AS ids
+            FROM sets
+            WHERE user_id = %s
+            GROUP BY nombre_set, pieza
+            HAVING COUNT(*) > 1
+            """,
+            (user_id,),
+        )
+        merged = 0
+        for _nombre, _pieza, ids in cur.fetchall():
+            if not ids:
+                continue
+            keep_id = ids[0]
+            for dup_id in ids[1:]:
+                cur.execute("DELETE FROM sets WHERE id = %s", (dup_id,))
+                merged += 1
+        stats["merged_duplicate_rows"] = merged
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return stats
+    except Exception as e:
+        print(f"reconcile_user_sets: {e}")
+        conn.rollback()
+        conn.close()
+        return {"error": str(e)}
 
 def save_data(edited_df, user_id):
     conn = get_connection()
@@ -490,7 +774,7 @@ def create_set_complete(user_id, nombre_set, kundun):
     if not conn: return False
     try:
         cur = conn.cursor()
-        sets_sin_helm = {"Storm Crow", "Thunder Hawk", "Sacred Fire", "Storm Zahard"}
+        sets_sin_helm = {"Storm Crow", "Sacred Fire", "Storm Zahard"}
         sets_sin_guantes = set()
         if nombre_set in sets_sin_helm:
             piezas = ("Armor", "Pants", "Gloves", "Boots")
@@ -611,3 +895,12 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
         print(f"Error consultando mercado: {e}")
         raise
 
+
+if __name__ == "__main__":
+    import json
+    import sys
+
+    if len(sys.argv) >= 3 and sys.argv[1] == "reconcile":
+        print(json.dumps(reconcile_user_sets(sys.argv[2]), indent=2, ensure_ascii=False))
+    else:
+        print("Uso: python database_logic.py reconcile <usuario>")

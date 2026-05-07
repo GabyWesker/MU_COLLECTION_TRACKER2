@@ -1,13 +1,14 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from database_logic import (
     register_user,
     get_users_for_auth,
-    load_data,
+    load_user_data_bundle,
+    get_user_items_for_set,
     get_all_sets,
     add_full,
     delete_item,
@@ -65,31 +66,6 @@ class AddItemRequest(BaseModel):
     hp: int
     zen: int
 
-ITEM_DEFAULTS = {
-    "nombre_set": "",
-    "pieza": "",
-    "kundun": 0,
-    "obtenido": False,
-    "luck": False,
-    "nivel_bs": 0,
-    "add_lif": 0,
-    "opt_sd": False,
-    "opt_dd": False,
-    "opt_dsr": False,
-    "opt_ref": False,
-    "opt_hp": False,
-    "opt_zen": False,
-}
-
-def dataframe_records(df, defaults=None):
-    if df.empty:
-        return []
-    safe_df = df.copy()
-    for column, default in (defaults or {}).items():
-        if column in safe_df.columns:
-            safe_df[column] = safe_df[column].fillna(default)
-    return safe_df.to_dict(orient="records")
-
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse(
@@ -127,11 +103,30 @@ async def get_user_sets_endpoint(user_id: int):
     return {"sets": get_user_sets(user_id)}
 
 @app.get("/api/user/{user_id}/data")
-async def get_user_data(user_id: int):
-    df, df_premios = load_data(user_id)
-    items = dataframe_records(df, ITEM_DEFAULTS)
-    premios = dataframe_records(df_premios)
-    return {"items": items, "premios": premios}
+async def get_user_data(
+    user_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    estado: Optional[str] = None,
+    tier: Optional[str] = None,
+    set_name: Optional[str] = Query(None, alias="set"),
+):
+    bundle = load_user_data_bundle(
+        user_id,
+        page=page,
+        page_size=page_size,
+        search=search,
+        estado=estado,
+        tier=tier,
+        set_name=set_name,
+    )
+    return bundle
+
+
+@app.get("/api/user/{user_id}/items/in-set")
+async def get_items_in_set(user_id: int, nombre_set: str = Query(..., min_length=1)):
+    return {"items": get_user_items_for_set(user_id, nombre_set)}
 
 @app.get("/search-items")
 async def search_items(query: str, luck: Optional[bool] = None, opts: Optional[str] = None):

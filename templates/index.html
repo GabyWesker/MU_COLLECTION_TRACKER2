@@ -117,14 +117,14 @@
                 <div class="bg-mu-card border border-mu-border rounded-xl p-5">
                     <h3 class="text-lg font-bold text-white mb-4">🔍 Filtros</h3>
                     <div class="space-y-4">
-                        <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Buscar por set o pieza..." class="w-full px-4 py-2.5 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition text-sm">
+                        <input type="text" id="searchInput" onkeyup="scheduleFilterReload()" placeholder="Buscar por set o pieza..." class="w-full px-4 py-2.5 bg-mu-dark border border-mu-border rounded-lg focus:outline-none focus:border-mu-purple transition text-sm">
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <select id="filterEstado" onchange="applyFilters()" class="px-3 py-2.5 rounded-lg text-sm">
+                            <select id="filterEstado" onchange="loadItems(1)" class="px-3 py-2.5 rounded-lg text-sm">
                                 <option value="Todos">Todos los estados</option>
                                 <option value="Pendientes">Pendientes ❌</option>
                                 <option value="Completados">Completados ✅</option>
                             </select>
-                            <select id="filterTier" onchange="applyFilters()" class="px-3 py-2.5 rounded-lg text-sm">
+                            <select id="filterTier" onchange="loadItems(1)" class="px-3 py-2.5 rounded-lg text-sm">
                                 <option value="Todos">Todos los Tiers</option>
                                 <option value="1">K1</option>
                                 <option value="2">K2</option>
@@ -132,7 +132,7 @@
                                 <option value="4">K4</option>
                                 <option value="5">K5</option>
                             </select>
-                            <select id="filterSet" onchange="applyFilters()" class="px-3 py-2.5 rounded-lg text-sm">
+                            <select id="filterSet" onchange="loadItems(1)" class="px-3 py-2.5 rounded-lg text-sm">
                                 <option value="Todos">Todos los Sets</option>
                             </select>
                         </div>
@@ -211,6 +211,13 @@
                         </thead>
                         <tbody id="itemsTableBody"></tbody>
                     </table>
+                </div>
+                <div id="tablePagination" class="hidden flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-mu-border bg-mu-dark">
+                    <p id="paginationInfo" class="text-sm text-gray-400"></p>
+                    <div class="flex gap-2">
+                        <button type="button" id="btnPrevPage" onclick="prevPage()" class="px-4 py-2 rounded-lg bg-mu-dark border border-mu-border text-sm hover:border-mu-purple disabled:opacity-40 disabled:cursor-not-allowed">← Anterior</button>
+                        <button type="button" id="btnNextPage" onclick="nextPage()" class="px-4 py-2 rounded-lg bg-mu-dark border border-mu-border text-sm hover:border-mu-purple disabled:opacity-40 disabled:cursor-not-allowed">Siguiente →</button>
+                    </div>
                 </div>
                 <div id="loadingItems" class="text-center py-12">
                     <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-mu-purple"></div>
@@ -414,6 +421,15 @@
         let currentUserId = localStorage.getItem('userId');
         let currentUsername = localStorage.getItem('username');
         let allItems = [];
+        /** Todas las piezas (id, nombre_set, pieza, obtenido) para bonus y galería */
+        let itemsLight = [];
+        let totalItemCount = 0;
+        let obtainedItemCount = 0;
+        let filteredItemCount = 0;
+        let currentPage = 1;
+        let totalPages = 1;
+        const PAGE_SIZE = 20;
+        let filterReloadTimer = null;
         let allSets = [];
 
         const BONUS_STATS = {
@@ -461,11 +477,17 @@
         };
 
         const SET_NAME_ALIASES = {
-            'Sphinix': 'Sphinx'
+            'Sphinix': 'Sphinx',
+            'Shpinx': 'Sphinx',
+            'shpinx': 'Sphinx',
         };
 
         function normalizeSetName(setName) {
-            return SET_NAME_ALIASES[String(setName ?? '').trim()] || String(setName ?? '');
+            const raw = String(setName ?? '').trim();
+            if (!raw) return raw;
+            if (SET_NAME_ALIASES[raw]) return SET_NAME_ALIASES[raw];
+            const byLower = Object.keys(SET_BONUSES).find(k => k.toLowerCase() === raw.toLowerCase());
+            return byLower || raw;
         }
 
         function toggleSetSidebar() {
@@ -738,7 +760,7 @@
                 btnTable.classList.add('bg-mu-dark', 'border', 'border-mu-border', 'text-gray-300');
                 btnGallery.classList.remove('bg-mu-dark', 'border', 'border-mu-border', 'text-gray-300');
                 btnGallery.classList.add('bg-mu-purple', 'text-white');
-                renderGallery(allItems);
+                renderGallery(itemsLight);
             } else {
                 tableView.classList.remove('hidden');
                 galleryView.classList.add('hidden');
@@ -840,7 +862,7 @@
 
         async function loadSetsForFilter() {
             try {
-                const response = await fetch(`${API_URL}/api/sets`);
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/sets`);
                 const data = await response.json();
                 allSets = data.sets;
                 const select = document.getElementById('filterSet');
@@ -854,30 +876,85 @@
             }
         }
 
-        async function loadItems() {
+        function scheduleFilterReload() {
+            clearTimeout(filterReloadTimer);
+            filterReloadTimer = setTimeout(() => loadItems(1), 320);
+        }
+
+        function updatePaginationControls() {
+            const info = document.getElementById('paginationInfo');
+            const prev = document.getElementById('btnPrevPage');
+            const next = document.getElementById('btnNextPage');
+            info.textContent = `${filteredItemCount} pieza${filteredItemCount === 1 ? '' : 's'} · página ${currentPage} de ${totalPages}`;
+            prev.disabled = currentPage <= 1;
+            next.disabled = currentPage >= totalPages;
+        }
+
+        function goToPage(p) {
+            if (p < 1 || p > totalPages) return;
+            loadItems(p);
+        }
+
+        function prevPage() {
+            goToPage(currentPage - 1);
+        }
+
+        function nextPage() {
+            goToPage(currentPage + 1);
+        }
+
+        async function loadItems(page = 1) {
             document.getElementById('loadingItems').classList.remove('hidden');
             document.getElementById('loadingGallery').classList.remove('hidden');
             document.getElementById('itemsTableBody').innerHTML = '';
             try {
-                const response = await fetch(`${API_URL}/api/user/${currentUserId}/data`);
-                const data = await response.json();
-                allItems = data.items;
-                
-                // Sort: by set name A-Z, then by piece order (Helm->Armor->Pants->Gloves->Boots)
-                const piezaOrder = { 'Helm': 1, 'Armor': 2, 'Pants': 3, 'Gloves': 4, 'Boots': 5 };
-                allItems.sort((a, b) => {
-                    if (a.nombre_set !== b.nombre_set) {
-                        return a.nombre_set.localeCompare(b.nombre_set);
-                    }
-                    return (piezaOrder[a.pieza] || 99) - (piezaOrder[b.pieza] || 99);
+                const params = new URLSearchParams({
+                    page: String(page),
+                    page_size: String(PAGE_SIZE),
                 });
-                
+                const search = document.getElementById('searchInput').value.trim();
+                if (search) params.set('search', search);
+                const estado = document.getElementById('filterEstado').value;
+                if (estado !== 'Todos') params.set('estado', estado);
+                const tier = document.getElementById('filterTier').value;
+                if (tier !== 'Todos') params.set('tier', tier);
+                const setVal = document.getElementById('filterSet').value;
+                if (setVal !== 'Todos') params.set('set', setVal);
+
+                const response = await fetch(`${API_URL}/api/user/${currentUserId}/data?${params.toString()}`);
+                const data = await response.json();
+
+                allItems = data.items || [];
+                itemsLight = data.items_light || [];
+                totalItemCount = data.total ?? 0;
+                obtainedItemCount = data.obtained_count ?? 0;
+                filteredItemCount = data.filtered_total ?? 0;
+                currentPage = data.page ?? page;
+                totalPages = data.total_pages ?? 1;
+
+                if (allItems.length === 0 && filteredItemCount > 0 && page > 1) {
+                    document.getElementById('loadingGallery').classList.add('hidden');
+                    document.getElementById('loadingItems').classList.add('hidden');
+                    return loadItems(page - 1);
+                }
+
                 document.getElementById('loadingItems').classList.add('hidden');
                 document.getElementById('loadingGallery').classList.add('hidden');
+
+                const pagEl = document.getElementById('tablePagination');
+                if (totalItemCount === 0) {
+                    document.getElementById('noItems').classList.remove('hidden');
+                    pagEl.classList.add('hidden');
+                } else {
+                    document.getElementById('noItems').classList.add('hidden');
+                    pagEl.classList.remove('hidden');
+                    updatePaginationControls();
+                }
+
+                renderTable(allItems);
                 updateStats();
                 renderBonusSummary();
-                applyFilters();
-                renderGallery(allItems);
+                renderGallery(itemsLight);
             } catch (error) {
                 console.error('Error loading items:', error);
                 document.getElementById('loadingItems').innerHTML = '<p class="text-red-400">Error al cargar items</p>';
@@ -886,8 +963,8 @@
         }
 
         function updateStats() {
-            const total = allItems.length;
-            const obtained = allItems.filter(i => i.obtenido).length;
+            const total = totalItemCount;
+            const obtained = obtainedItemCount;
             const percent = total > 0 ? Math.round((obtained / total) * 100) : 0;
             document.getElementById('progressText').textContent = `${obtained}/${total}`;
             document.getElementById('progressBar').style.width = `${percent}%`;
@@ -896,7 +973,7 @@
 
         function getRequiredPieces(setName) {
             setName = normalizeSetName(setName);
-            const setsSinHelm = new Set(['Storm Crow', 'Thunder Hawk', 'Sacred Fire', 'Storm Zahard']);
+            const setsSinHelm = new Set(['Storm Crow', 'Sacred Fire', 'Storm Zahard']);
             const setsSinGuantes = new Set();
             if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
             if (setsSinGuantes.has(setName)) return ['Helm', 'Armor', 'Pants', 'Boots'];
@@ -921,7 +998,7 @@
             icon.textContent = isHidden ? '⌄' : '⌃';
         }
 
-        function getActiveSetBonuses(items = allItems) {
+        function getActiveSetBonuses(items = itemsLight) {
             const grouped = {};
             (items || []).forEach(item => {
                 const setName = normalizeSetName(item.nombre_set);
@@ -941,7 +1018,7 @@
                 .map(([setName, bonuses]) => ({setName, bonuses}));
         }
 
-        function renderBonusSummary(items = allItems) {
+        function renderBonusSummary(items = itemsLight) {
             const panel = document.getElementById('bonusPanel');
             const summaryEl = document.getElementById('bonusSummaryText');
             const totalsEl = document.getElementById('bonusTotals');
@@ -989,33 +1066,18 @@
             }).join('');
         }
 
-        function applyFilters() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const estado = document.getElementById('filterEstado').value;
-            const tier = document.getElementById('filterTier').value;
-            const set = document.getElementById('filterSet').value;
-            const normalizedFilterSet = normalizeSetName(set);
-
-            let filtered = allItems.filter(item => {
-                const normalizedItemSet = normalizeSetName(item.nombre_set);
-                if (search && !normalizedItemSet.toLowerCase().includes(search) && !item.pieza.toLowerCase().includes(search)) return false;
-                if (estado === 'Pendientes' && item.obtenido) return false;
-                if (estado === 'Completados' && !item.obtenido) return false;
-                if (tier !== 'Todos' && item.kundun != parseInt(tier)) return false;
-                if (set !== 'Todos' && normalizedItemSet !== normalizedFilterSet) return false;
-                return true;
-            });
-
-            renderTable(filtered);
-        }
-
         function renderTable(items) {
             const tbody = document.getElementById('itemsTableBody');
             const noItems = document.getElementById('noItems');
             
             if (items.length === 0) {
                 tbody.innerHTML = '';
-                noItems.classList.remove('hidden');
+                if (totalItemCount === 0) {
+                    noItems.classList.remove('hidden');
+                } else {
+                    noItems.classList.add('hidden');
+                    tbody.innerHTML = `<tr><td colspan="15" class="text-center py-10 text-gray-400">Sin resultados con estos filtros.</td></tr>`;
+                }
                 return;
             }
             
@@ -1113,9 +1175,7 @@
                 if (response.ok) {
                     const item = allItems.find(i => i.id === itemId);
                     if (item) item[campo] = nuevoValor;
-                    updateStats();
-                    renderBonusSummary();
-                    applyFilters();
+                    renderTable(allItems);
                 }
             } catch (error) {
                 console.error('Error updating field:', error);
@@ -1128,11 +1188,16 @@
                     method: 'PUT'
                 });
                 if (response.ok) {
-                    const item = allItems.find(i => i.id === itemId);
-                    if (item) item.obtenido = !currentValue;
+                    const nextVal = !currentValue;
+                    const row = allItems.find(i => i.id === itemId);
+                    if (row) row.obtenido = nextVal;
+                    const lit = itemsLight.find(i => i.id === itemId);
+                    if (lit) lit.obtenido = nextVal;
+                    obtainedItemCount += nextVal ? 1 : -1;
                     updateStats();
                     renderBonusSummary();
-                    applyFilters();
+                    renderTable(allItems);
+                    renderGallery(itemsLight);
                 }
             } catch (error) {
                 console.error('Error toggling item:', error);
@@ -1146,10 +1211,7 @@
                     method: 'DELETE'
                 });
                 if (response.ok) {
-                    allItems = allItems.filter(i => i.id !== itemId);
-                    updateStats();
-                    renderBonusSummary();
-                    applyFilters();
+                    await loadItems(currentPage);
                 }
             } catch (error) {
                 console.error('Error deleting item:', error);
@@ -1168,15 +1230,31 @@
             return options;
         }
 
-        function getMarketTargets(itemId, set, pieza) {
+        async function fetchSetItemsFull(canonicalSet) {
+            try {
+                const r = await fetch(`${API_URL}/api/user/${currentUserId}/items/in-set?nombre_set=${encodeURIComponent(canonicalSet)}`);
+                const data = await r.json();
+                return data.items || [];
+            } catch (e) {
+                console.error(e);
+                return [];
+            }
+        }
+
+        async function getMarketTargets(itemId, set, pieza) {
+            const normalizedSet = normalizeSetName(set);
+            const pieceOrder = {Helm: 1, Armor: 2, Pants: 3, Gloves: 4, Boots: 5};
+
             if (itemId) {
-                const item = allItems.find(i => i.id === itemId);
+                let item = allItems.find(i => i.id === itemId);
+                if (!item) {
+                    const rows = await fetchSetItemsFull(normalizedSet);
+                    item = rows.find(i => i.id === itemId);
+                }
                 return item ? [item] : [];
             }
 
-            const pieceOrder = {Helm: 1, Armor: 2, Pants: 3, Gloves: 4, Boots: 5};
-            const normalizedSet = normalizeSetName(set);
-            const setItems = allItems
+            const setItems = (await fetchSetItemsFull(normalizedSet))
                 .filter(item => normalizeSetName(item.nombre_set) === normalizedSet && (!pieza || item.pieza === pieza))
                 .sort((a, b) => (pieceOrder[a.pieza] || 99) - (pieceOrder[b.pieza] || 99));
 
@@ -1271,7 +1349,7 @@
 
         async function searchInMarket(itemId, set, pieza) {
             const canonicalSet = normalizeSetName(set);
-            const targets = getMarketTargets(itemId, set, pieza);
+            const targets = await getMarketTargets(itemId, set, pieza);
             const title = `🛒 Mercado: ${canonicalSet}${pieza ? ` ${pieza}` : ''}`;
             const groups = targets.map(item => ({
                 item,
