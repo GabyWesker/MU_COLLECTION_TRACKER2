@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.*
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+venv
+.idea
+.vscode
+*.bat
+README.md
+Dockerfile
+.dockerignore
+reset_pass.py
