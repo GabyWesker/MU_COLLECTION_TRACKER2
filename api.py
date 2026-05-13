@@ -1,3 +1,5 @@
+import json
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException, Query
@@ -21,7 +23,9 @@ from database_logic import (
     get_user_id_by_username,
     get_master_sets,
     get_user_sets,
-    search_market
+    search_market,
+    fetch_market_upstream_items,
+    market_badges_from_item,
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -35,6 +39,50 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+SET_BONUSES = {
+    "Pad": {"hp": 1000},
+    "Leather": {"hp": 1000},
+    "Vine": {"hp": 1000},
+    "Bronze": {"atk_speed": 15},
+    "Silk": {"atk_speed": 20},
+    "Bone": {"increase_dmg": 2},
+    "Scale": {"increase_dmg": 4},
+    "Wind": {"increase_def": 2},
+    "Violent Wind": {"ignore": 1},
+    "Sphinx": {"hp": 1500},
+    "Brass": {"sd": 2},
+    "Spirit": {"increase_dmg": 3},
+    "Plate": {"dd": 1},
+    "Legendary": {"increase_def": 3},
+    "Red Winged": {"hp": 1500},
+    "Guardian": {"atk_speed": 25},
+    "Dragon": {"hp": 1500},
+    "Light Plate": {"exce_dmg": 2},
+    "Sacred Fire": {"increase_def": 5},
+    "Ancient": {"dd": 2},
+    "Adamantine": {"hp": 1500},
+    "Storm Crow": {"exce_dmg": 4},
+    "Storm Zahard": {"hp": 2000},
+    "Black Dragon": {"atk_speed": 30},
+    "Demonic": {"reflect": 2},
+    "Grand Soul": {"increase_def": 5},
+    "Holy Spirit": {"dd": 2},
+    "Dark Steel": {"hp": 2000},
+    "Dark Phoenix": {"sd": 6},
+}
+
+BONUS_LABELS = {
+    "hp": "HP",
+    "atk_speed": "Atk Speed",
+    "increase_dmg": "Increase Dmg",
+    "increase_def": "Increase Def",
+    "ignore": "Ignore",
+    "sd": "SD",
+    "dd": "DD",
+    "exce_dmg": "Exce Dmg",
+    "reflect": "Reflect",
+}
 
 class UserLogin(BaseModel):
     username: str
@@ -98,6 +146,16 @@ async def get_sets():
 async def get_master_sets_endpoint():
     return {"sets": get_master_sets()}
 
+@app.get("/api/bonus-types")
+async def get_bonus_types():
+    keys = sorted({bonus_type for bonuses in SET_BONUSES.values() for bonus_type in bonuses.keys()})
+    return {
+        "bonus_types": [
+            {"value": key, "label": BONUS_LABELS.get(key, key)}
+            for key in keys
+        ]
+    }
+
 @app.get("/api/user/{user_id}/sets")
 async def get_user_sets_endpoint(user_id: int):
     return {"sets": get_user_sets(user_id)}
@@ -135,6 +193,38 @@ async def search_items(query: str, luck: Optional[bool] = None, opts: Optional[s
         return search_market(query, luck=luck, excellent_options=excellent_options)
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+@app.get("/api/debug/market-payload")
+async def debug_market_payload(
+    query: str = Query(..., min_length=1),
+    opts: Optional[str] = None,
+):
+    """
+    Con MARKET_DEBUG=1: primer ítem crudo del mercado + badges parseados.
+    Sirve para ver la forma real del JSON y ajustar database_logic.
+    """
+    if os.environ.get("MARKET_DEBUG", "").strip().lower() not in ("1", "true", "yes"):
+        raise HTTPException(status_code=404, detail="Not found")
+    excellent_options = [opt.strip().lower() for opt in opts.split(",") if opt.strip()] if opts else []
+    try:
+        items = fetch_market_upstream_items(query, excellent_options=excellent_options)
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    first = items[0] if items else None
+    preview = ""
+    if isinstance(first, dict):
+        try:
+            preview = json.dumps(first, ensure_ascii=False, default=str)[:12000]
+        except (TypeError, ValueError):
+            preview = ""
+    return {
+        "upstream_count": len(items),
+        "first_item": first,
+        "badges_parsed": market_badges_from_item(first) if isinstance(first, dict) else [],
+        "first_item_json_preview": preview,
+    }
+
 
 @app.post("/api/user/{user_id}/create_set")
 async def create_set(user_id: int, req: CreateSetRequest):

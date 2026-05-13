@@ -1,4 +1,6 @@
-﻿import os
+﻿import json
+import os
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -105,12 +107,47 @@ MARKET_OPTION_LABELS = {
     "mana": "MANA",
 }
 
+# Dónde buscar opciones excelentes en la respuesta del mercado (lista, dict o string JSON/texto).
+MARKET_ITEM_OPTION_KEYS = (
+    "options",
+    "excellentOptions",
+    "excellent_options",
+    "opts",
+    "excellent",
+    "excellent_option_list",
+    "excellentOptionList",
+    "excellentDetails",
+    "details",
+    "itemDetails",
+    "modifiers",
+    "attributes",
+    "bonusOptions",
+    "bonuses",
+)
+
+# Ej. "[Normal] Damage Decrease", "[Rare] Defense Success Rate" (API MU Dream).
+_BRACKET_TIER_LINE_RE = re.compile(
+    r"^\s*\[(normal|common|uncommon|rare|epic|legendary)\]\s*(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
 def _market_option_values(options):
     values = set()
 
     def add_value(value):
         if value is None:
             return
+        if isinstance(value, str):
+            m = _BRACKET_TIER_LINE_RE.match(value.strip())
+            if m:
+                rest = m.group(2).strip().lower()
+                c = _canonical_from_description(rest)
+                if c:
+                    values.add(c)
+                    oc = MARKET_OPTION_CODES.get(c)
+                    if oc:
+                        values.add(oc)
         text = str(value).lower()
         values.add(text)
         for token in text.replace(",", " ").replace(";", " ").replace("|", " ").split():
@@ -165,7 +202,7 @@ def _market_option_values(options):
 
 def _item_market_option_values(item):
     values = set()
-    for key in ("options", "excellentOptions", "excellent_options", "opts"):
+    for key in MARKET_ITEM_OPTION_KEYS + ("socketOptions",):
         if key in item:
             values.update(_market_option_values(item.get(key)))
     return values
@@ -221,6 +258,497 @@ def _market_items_from_response(data):
             if nested:
                 return nested
     return []
+
+
+def api_numeric_to_ui_rarity(api_level):
+    """Nivel numérico API / dígitos imsd3 → índice de color 0–4 (igual que tier en juego)."""
+    try:
+        L = int(float(api_level))
+    except (TypeError, ValueError):
+        return 0
+    return max(0, min(4, L))
+
+
+def api_option_level_to_ui_rarity(api_level):
+    """Alias: niveles numéricos de la API (regex, campos level, pares JSON)."""
+    return api_numeric_to_ui_rarity(api_level)
+
+
+def _extract_api_option_level_from_dict(d):
+    """Obtiene nivel 0–4 según la API en cada opción."""
+    if not isinstance(d, dict):
+        return None
+    for key in (
+        "level",
+        "optionLevel",
+        "option_level",
+        "lvl",
+        "rank",
+        "enhancementLevel",
+        "enhancement",
+        "excellentLevel",
+        "optionTier",
+        "upgradeLevel",
+    ):
+        if key in d and d[key] is not None:
+            try:
+                v = int(float(d[key]))
+                return max(0, min(4, v))
+            except (TypeError, ValueError):
+                continue
+    for key in ("rarity", "grade", "tier", "quality", "optionRarity"):
+        if key in d and d[key] is not None:
+            try:
+                v = int(float(d[key]))
+                return max(0, min(4, v))
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+_WORD_TIER_TO_LEVEL = {
+    "normal": 0,
+    "norm": 0,
+    "common": 0,
+    "grey": 0,
+    "gray": 0,
+    "uncommon": 1,
+    "green": 1,
+    "rare": 2,
+    "pink": 2,
+    "magenta": 2,
+    "epic": 3,
+    "orange": 3,
+    "legendary": 4,
+    "legend": 4,
+    "red": 4,
+}
+
+
+def _tier_word_level_from_dict(d):
+    """Nivel 0–4 a partir de strings tipo Epic / Legendary en la opción."""
+    if not isinstance(d, dict):
+        return 0
+    best = 0
+    for key in (
+        "tier",
+        "tierName",
+        "rarityName",
+        "qualityName",
+        "rankName",
+        "optionRarityName",
+        "gradeName",
+        "levelName",
+        "grade",
+        "rarity",
+        "quality",
+    ):
+        v = d.get(key)
+        if isinstance(v, str):
+            t = v.strip().lower()
+            if t in _WORD_TIER_TO_LEVEL:
+                best = max(best, _WORD_TIER_TO_LEVEL[t])
+    return best
+
+
+def _rarity_from_option_dict(d):
+    lvl = _extract_api_option_level_from_dict(d)
+    base = api_numeric_to_ui_rarity(lvl) if lvl is not None else 0
+    tw = _tier_word_level_from_dict(d)
+    return max(base, tw)
+
+
+_CODE_ALIASES = {
+    "imsd": "sd",
+    "izdr": "zen",
+    "iml": "hp",
+    "imm": "mana",
+    "rd": "ref",
+}
+
+
+def _canonical_from_description(text):
+    """Nombres largos que envía la API en strings / labels."""
+    if text is None:
+        return ""
+    s = str(text).strip().lower()
+    if not s:
+        return ""
+    if s.strip() in ("sd", "imsd"):
+        return "sd"
+    if "damage decrease" in s or s.strip() == "dd":
+        return "dd"
+    if "defense success rate" in s or "def success" in s:
+        return "dsr"
+    if s.strip() in ("dsr", "dr"):
+        return "dsr"
+    if "reflect damage" in s:
+        return "ref"
+    if "zen drop" in s or "zen obtain" in s:
+        return "zen"
+    if "increase shield" in s or "increase sd" in s or s == "shield":
+        return "sd"
+    if re.search(r"(?:^|\s)sd(?:\s|$)", s) and "damage decrease" not in s:
+        return "sd"
+    if "increase maximum life" in s or "increase max life" in s or "max hp" in s:
+        return "hp"
+    if "increase maximum mana" in s or "max mana" in s:
+        return "mana"
+    return ""
+
+
+def _badge_from_bracket_option_line(line):
+    """Una línea tipo '[Rare] Damage Decrease' → code + rareza 0–4."""
+    if not isinstance(line, str) or not line.strip():
+        return None
+    m = _BRACKET_TIER_LINE_RE.match(line.strip())
+    if not m:
+        return None
+    tier_key = m.group(1).lower()
+    rest = m.group(2).strip()
+    # Tier del texto [Epic]/[Legendary] ya es semántico (3=naranja, 4=rojo); no aplicar swap API.
+    lvl = _WORD_TIER_TO_LEVEL.get(tier_key, 0)
+    canon = _canonical_from_description(rest)
+    if not canon:
+        return None
+    return {
+        "code": canon,
+        "label": MARKET_OPTION_LABELS.get(canon, canon.upper()),
+        "rarity": lvl,
+    }
+
+
+def _badges_from_bracket_labeled_strings(item):
+    badges = []
+    for key in MARKET_ITEM_OPTION_KEYS:
+        v = item.get(key)
+        if not isinstance(v, list):
+            continue
+        for line in v:
+            b = _badge_from_bracket_option_line(line)
+            if b:
+                badges.append(b)
+    return badges
+
+
+def _canonical_excellent_code(raw_code):
+    if raw_code is None:
+        return ""
+    by_desc = _canonical_from_description(raw_code)
+    if by_desc:
+        return by_desc
+    s = str(raw_code).strip().lower()
+    s = re.sub(r"\d+$", "", s)
+    s = _CODE_ALIASES.get(s, s)
+    if s in MARKET_OPTION_LABELS:
+        return s
+    return ""
+
+
+def _unwrap_option_dict(opt):
+    if isinstance(opt, dict):
+        inner = opt.get("excellentOption") or opt.get("excellent_option") or opt.get("opt")
+        if isinstance(inner, dict):
+            merged = {**opt, **inner}
+            merged.pop("excellentOption", None)
+            merged.pop("excellent_option", None)
+            merged.pop("opt", None)
+            return merged
+    return opt
+
+
+def _resolve_canon_from_option_dict(opt):
+    """
+    Resuelve sd/dd/hp… desde name/label antes que code numérico sin sentido.
+    """
+    if not isinstance(opt, dict):
+        return ""
+    priority = (
+        "name",
+        "label",
+        "description",
+        "displayName",
+        "title",
+        "text",
+        "code",
+        "type",
+        "option",
+        "key",
+        "optionType",
+        "optionCode",
+        "excellentType",
+    )
+    for fk in priority:
+        v = opt.get(fk)
+        if v is None:
+            continue
+        c = _canonical_excellent_code(v)
+        if c:
+            return c
+    for v in opt.values():
+        if isinstance(v, str) and len(v) > 2:
+            c = _canonical_from_description(v)
+            if c:
+                return c
+    return ""
+
+
+def _parse_market_option_badge(opt):
+    """Una opción excelente → dict code / label / rarity UI (sin Luck)."""
+    if opt is None:
+        return None
+    if isinstance(opt, dict):
+        opt = _unwrap_option_dict(opt)
+        try:
+            sub_blob = json.dumps(opt, default=str).lower()
+        except (TypeError, ValueError):
+            sub_blob = ""
+        blob_boost = 0
+        if sub_blob:
+            rb = (
+                _badges_from_regex_codes_blob(sub_blob)
+                + _badges_from_json_keyed_levels_blob(sub_blob)
+            )
+            if rb:
+                blob_boost = max(b["rarity"] for b in rb)
+
+        if len(opt) == 1:
+            raw_key = next(iter(opt.keys()))
+            code_raw = re.sub(r"\d+$", "", str(raw_key))
+            val0 = next(iter(opt.values()))
+            api_lvl = None
+            try:
+                if val0 is not None and str(val0).strip() != "":
+                    api_lvl = int(float(val0))
+            except (TypeError, ValueError):
+                api_lvl = None
+            rarity = (
+                api_option_level_to_ui_rarity(api_lvl)
+                if api_lvl is not None
+                else _rarity_from_option_dict(opt)
+            )
+            rarity = max(rarity, blob_boost)
+            canon = (
+                _canonical_excellent_code(code_raw)
+                or _canonical_excellent_code(str(raw_key))
+                or (isinstance(val0, str) and _canonical_from_description(val0))
+                or ""
+            )
+        else:
+            rarity = max(_rarity_from_option_dict(opt), blob_boost)
+            canon = _resolve_canon_from_option_dict(opt)
+        if not canon:
+            return None
+        return {
+            "code": canon,
+            "label": MARKET_OPTION_LABELS.get(canon, canon.upper()),
+            "rarity": rarity,
+        }
+    if isinstance(opt, str):
+        text = opt.strip()
+        m = re.match(
+            r"^(imsd|izdr|iml|imm|sd|dd|dsr|ref|rd|hp|zen|mana)(\d)?$",
+            text.lower(),
+        )
+        if m:
+            base = m.group(1)
+            digit = m.group(2)
+            canon = _canonical_excellent_code(base)
+            if not canon:
+                return None
+            api_lvl = int(digit) if digit else 0
+            rarity = api_option_level_to_ui_rarity(api_lvl)
+            return {
+                "code": canon,
+                "label": MARKET_OPTION_LABELS.get(canon, canon.upper()),
+                "rarity": rarity,
+            }
+    return None
+
+
+def _merge_badges_max_rarity(badges):
+    """Un badge por código; conserva la rareza máxima."""
+    best = {}
+    order = []
+    for b in badges:
+        if not b:
+            continue
+        c = b["code"]
+        if c not in best:
+            order.append(c)
+            best[c] = dict(b)
+        elif b["rarity"] > best[c]["rarity"]:
+            best[c] = dict(b)
+    return [best[c] for c in order]
+
+
+def _item_json_blob_lower(item):
+    try:
+        return json.dumps(item, default=str).lower()
+    except (TypeError, ValueError):
+        return ""
+
+
+def _badges_from_regex_codes_blob(blob_lower):
+    """Códigos cortos + dígito (p. ej. izdr3, dd2) en un JSON ya serializado."""
+    if not blob_lower:
+        return []
+    badges = []
+    pat = re.compile(
+        r"(?:^|[^a-z0-9])(imsd|izdr|iml|imm|sd|dd|dsr|ref|rd|hp|zen|mana)(\d)(?=[^0-9]|$)"
+    )
+    for m in pat.finditer(blob_lower):
+        canon = _canonical_excellent_code(m.group(1))
+        if not canon:
+            continue
+        badges.append({
+            "code": canon,
+            "label": MARKET_OPTION_LABELS[canon],
+            "rarity": api_option_level_to_ui_rarity(int(m.group(2))),
+        })
+    return badges
+
+
+def _badges_from_regex_codes_in_blob(item):
+    """Códigos cortos + dígito (p. ej. izdr3, dd2) en cualquier parte del JSON."""
+    return _badges_from_regex_codes_blob(_item_json_blob_lower(item))
+
+
+def _badges_from_json_keyed_levels_blob(blob_lower):
+    """Pares \"dd\": 3, \"izdr\": 4 en JSON serializado (fragmento o ítem completo)."""
+    if not blob_lower:
+        return []
+    badges = []
+    for canon, label in MARKET_OPTION_LABELS.items():
+        for alt in filter(None, (canon, MARKET_OPTION_CODES.get(canon))):
+            # Número con o sin comillas: "imsd": 3 o "imsd": "3"
+            m = re.search(rf'"{re.escape(alt)}"\s*:\s*"?(\d+)"?', blob_lower)
+            if m:
+                try:
+                    lvl = int(m.group(1))
+                except ValueError:
+                    lvl = 0
+                badges.append({
+                    "code": canon,
+                    "label": label,
+                    "rarity": api_option_level_to_ui_rarity(lvl),
+                })
+                break
+    return badges
+
+
+def _badges_from_json_keyed_levels(item):
+    """Pares \"dd\": 3, \"izdr\": 4 en JSON serializado (respuesta típica de API)."""
+    return _badges_from_json_keyed_levels_blob(_item_json_blob_lower(item))
+
+
+def _badges_from_option_tokens(item):
+    """Mismo criterio que el matcher de ítems + nivel por regex en el JSON."""
+    blob = _item_json_blob_lower(item)
+    tokens = _item_market_option_values(item)
+    badges = []
+    for canon, label in MARKET_OPTION_LABELS.items():
+        aliases = {canon, MARKET_OPTION_CODES.get(canon, "")}
+        aliases.discard("")
+        if not (tokens & aliases):
+            continue
+        api_lvl = 0
+        for alt in aliases:
+            mat = re.search(
+                rf"(?:^|[^a-z0-9])({re.escape(alt)})(\d)(?=[^0-9]|$)",
+                blob,
+            )
+            if mat:
+                api_lvl = max(api_lvl, int(mat.group(2)))
+        badges.append({
+            "code": canon,
+            "label": label,
+            "rarity": api_option_level_to_ui_rarity(api_lvl),
+        })
+    return badges
+
+
+def market_badges_from_item(item):
+    """Une todas las fuentes de opciones que envía la API."""
+    structured = []
+    for key in MARKET_ITEM_OPTION_KEYS:
+        v = item.get(key)
+        if v is None:
+            continue
+        if isinstance(v, str) and not v.strip():
+            continue
+        if isinstance(v, (list, dict)) and len(v) == 0:
+            continue
+
+        string_blobs = []
+        lst = []
+        if isinstance(v, str):
+            string_blobs.append(v.strip().lower())
+            try:
+                parsed = json.loads(v)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                parsed = None
+            if isinstance(parsed, dict):
+                lst = [parsed]
+            elif isinstance(parsed, list):
+                lst = parsed
+        elif isinstance(v, dict):
+            lst = [v]
+        elif isinstance(v, list):
+            lst = v
+        else:
+            continue
+
+        for blob in string_blobs:
+            structured.extend(_badges_from_regex_codes_blob(blob))
+            structured.extend(_badges_from_json_keyed_levels_blob(blob))
+        for opt in lst:
+            b = _parse_market_option_badge(opt)
+            if b:
+                structured.append(b)
+            if isinstance(opt, dict):
+                ob = json.dumps(opt, default=str).lower()
+                structured.extend(_badges_from_json_keyed_levels_blob(ob))
+                structured.extend(_badges_from_regex_codes_blob(ob))
+
+    kv_badges = _badges_from_json_keyed_levels(item)
+    regex_badges = _badges_from_regex_codes_in_blob(item)
+    token_badges = _badges_from_option_tokens(item)
+    bracket_badges = _badges_from_bracket_labeled_strings(item)
+
+    combined = structured + kv_badges + regex_badges + token_badges + bracket_badges
+    if not combined:
+        return []
+    return _merge_badges_max_rarity(combined)
+
+
+def market_dc_price_from_item(item):
+    prices = item.get("prices")
+    if prices is None:
+        return None, "DC"
+    if isinstance(prices, dict):
+        prices = [prices]
+    if not isinstance(prices, list) or not prices:
+        return None, "DC"
+    for p in prices:
+        if not isinstance(p, dict):
+            continue
+        cur = str(p.get("currency") or p.get("type") or p.get("symbol") or "").strip().upper()
+        if cur == "DC" or "DREAM" in cur:
+            amt = p.get("amount")
+            if amt is None:
+                amt = p.get("value")
+            if amt is not None:
+                return amt, "DC"
+    p0 = prices[0]
+    if isinstance(p0, dict):
+        amt = p0.get("amount")
+        if amt is None:
+            amt = p0.get("value")
+        cur = str(p0.get("currency") or "").strip().upper()
+        if amt is not None and (cur == "DC" or "DREAM" in cur):
+            return amt, "DC"
+    return None, "DC"
 
 def get_connection():
     if not NEON_CONN:
@@ -827,7 +1355,14 @@ def get_user_id_by_username(username):
         conn.close()
         return None
 
-def search_market(item_name, luck=None, excellent_options=None, ancient=False):
+def _market_debug_enabled():
+    return os.environ.get("MARKET_DEBUG", "").strip().lower() in ("1", "true", "yes")
+
+
+def fetch_market_upstream_items(item_name, excellent_options=None):
+    """
+    Lista cruda de ítems devuelta por la API de mercado (sin filtrar luck ni enriquecer).
+    """
     excellent_options = [opt for opt in (excellent_options or []) if opt in EXCELLENT_OPTION_CODES]
     if not MU_API_TOKEN:
         raise RuntimeError("MU_API_TOKEN no está configurado")
@@ -839,42 +1374,57 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
         code = MARKET_OPTION_CODES[option]
         option_filters.extend(f"{code}{level}" for level in MARKET_OPTION_LEVELS)
 
-    def build_params():
-        params = {
-            "query": item_name,
-            "limit": 25,
-        }
-        if option_filters:
-            params["options"] = ",".join(option_filters)
-        return params
+    params = {
+        "query": item_name,
+        "limit": 25,
+    }
+    if option_filters:
+        params["options"] = ",".join(option_filters)
 
-    def request_items(params):
-        market_url = _get_market_api_url()
-        response = requests.get(market_url, headers=headers, params=params, timeout=10)
-        parsed_url = urlparse(market_url)
-        print(
-            "[market] "
-            f"GET {parsed_url.netloc}{parsed_url.path} "
-            f"query={params.get('query')} "
-            f"options={params.get('options', '-')} "
-            f"status={response.status_code}"
-        )
-        if response.status_code == 404:
-            return []
-        if response.status_code != 200:
-            raise RuntimeError(f"Error de API de mercado: {response.status_code}")
-        items = _market_items_from_response(response.json())
-        print(f"[market] upstream_items={len(items)} query={params.get('query')}")
-        return items
+    market_url = _get_market_api_url()
+    response = requests.get(market_url, headers=headers, params=params, timeout=10)
+    parsed_url = urlparse(market_url)
+    print(
+        "[market] "
+        f"GET {parsed_url.netloc}{parsed_url.path} "
+        f"query={params.get('query')} "
+        f"options={params.get('options', '-')} "
+        f"status={response.status_code}"
+    )
+    if response.status_code == 404:
+        return []
+    if response.status_code != 200:
+        raise RuntimeError(f"Error de API de mercado: {response.status_code}")
+
+    items = _market_items_from_response(response.json())
+    print(f"[market] upstream_items={len(items)} query={params.get('query')}")
+
+    if _market_debug_enabled() and items:
+        try:
+            dump = json.dumps(items[0], indent=2, ensure_ascii=False, default=str)
+            max_len = 26000
+            if len(dump) > max_len:
+                dump = dump[:max_len] + "\n… [truncado]"
+            print("[market-debug] primer ítem upstream (JSON):\n" + dump)
+        except Exception as exc:
+            print(f"[market-debug] no se pudo serializar primer ítem: {exc}")
+
+    return items
+
+
+def search_market(item_name, luck=None, excellent_options=None, ancient=False):
+    excellent_options = [opt for opt in (excellent_options or []) if opt in EXCELLENT_OPTION_CODES]
 
     try:
-        items = request_items(build_params())
+        items = fetch_market_upstream_items(item_name, excellent_options=excellent_options)
         results = []
         for item in items:
             if luck is True and not _item_has_luck(item):
                 continue
             item_opts = item.get("options", [])
             match_reasons = _match_reasons_for_item(item, excellent_options, luck=bool(luck))
+            dc_amt, dc_cur = market_dc_price_from_item(item)
+            badge_list = market_badges_from_item(item)
             results.append({
                 "name": item.get("name", ""),
                 "level": item.get("level", 0),
@@ -885,9 +1435,13 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
                 "gearScore": item.get("gearScore", 0),
                 "options": item_opts,
                 "prices": item.get("prices", []),
+                "jewels": item.get("jewels") or item.get("jewelCosts") or item.get("jewel_costs"),
                 "imageUrl": item.get("imageUrl", ""),
                 "match_score": 1,
                 "match_reasons": match_reasons,
+                "marketBadges": badge_list,
+                "dcPrice": dc_amt,
+                "dcCurrency": dc_cur,
             })
         print(f"[market] returned_results={len(results)} query={item_name}")
         return results
@@ -897,7 +1451,6 @@ def search_market(item_name, luck=None, excellent_options=None, ancient=False):
 
 
 if __name__ == "__main__":
-    import json
     import sys
 
     if len(sys.argv) >= 3 and sys.argv[1] == "reconcile":

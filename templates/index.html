@@ -33,6 +33,180 @@
         select:focus { outline: none; border-color: #8b5cf6; }
         .opt-btn { transition: all 0.2s; }
         .sidebar { transition: transform 0.3s ease-in-out; }
+
+        /* Mercado MU Dream — filas y badges */
+        #marketResults .market-results-inner {
+            background: linear-gradient(145deg, rgba(10, 14, 26, 0.97) 0%, rgba(12, 18, 35, 0.98) 50%, rgba(8, 12, 24, 0.97) 100%);
+        }
+        #marketResults .market-row {
+            display: grid;
+            grid-template-columns: minmax(12rem, min(26%, 18rem)) minmax(0, 1fr) auto;
+            align-items: center;
+            column-gap: 0.85rem;
+            row-gap: 0.35rem;
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid rgba(42, 54, 84, 0.65);
+        }
+        .market-row:last-child { border-bottom: none; }
+        .market-item-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            min-width: 0;
+        }
+        .market-item-meta {
+            min-width: 0;
+            flex: 1;
+        }
+        .market-thumb {
+            width: 3rem;
+            height: 3rem;
+            flex-shrink: 0;
+            object-fit: contain;
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 0.35rem;
+            border: 1px solid rgba(42, 54, 84, 0.9);
+        }
+        .market-name-excellent {
+            color: #28a745;
+            font-weight: 700;
+            font-size: 0.875rem;
+            line-height: 1.25;
+            min-width: 0;
+            text-shadow: 0 0 12px rgba(40, 167, 69, 0.22);
+        }
+        .market-badge-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            align-items: center;
+            align-content: center;
+            min-width: 0;
+            justify-content: flex-start;
+            border-left: 1px solid rgba(42, 54, 84, 0.55);
+            padding-left: 0.85rem;
+        }
+        .mu-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        }
+        .mu-badge-luck {
+            border-color: rgba(59, 130, 246, 0.75);
+            background: rgba(37, 99, 235, 0.22);
+            color: #93c5fd;
+        }
+        .mu-badge-luck .mu-badge-icon { font-size: 0.7rem; line-height: 1; }
+        /* Preflight Tailwind no debe pisar colores del tier */
+        #marketResults .mu-badge-r0 {
+            border-color: #6c757d !important;
+            background: rgba(108, 117, 125, 0.18) !important;
+            color: #e9ecef !important;
+        }
+        #marketResults .mu-badge-r1 {
+            border-color: #28a745 !important;
+            background: rgba(40, 167, 69, 0.14) !important;
+            color: #5fdd95 !important;
+        }
+        #marketResults .mu-badge-r2 {
+            border-color: #e83e8c !important;
+            background: rgba(232, 62, 140, 0.14) !important;
+            color: #f8b4d3 !important;
+        }
+        /* Intercambiados r3/r4: la API asigna epic/legendary al revés respecto a estos colores */
+        #marketResults .mu-badge-r3 {
+            border-color: #dc3545 !important;
+            background: rgba(220, 53, 69, 0.16) !important;
+            color: #ffb3ba !important;
+        }
+        #marketResults .mu-badge-r4 {
+            border-color: #fd7e14 !important;
+            background: rgba(253, 126, 20, 0.14) !important;
+            color: #ffc078 !important;
+        }
+        .market-price-col {
+            flex-shrink: 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-end;
+            border-left: 1px solid rgba(42, 54, 84, 0.55);
+            padding-left: 0.85rem;
+            margin-left: 0.15rem;
+        }
+        .market-price-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.35rem;
+            min-width: 6.5rem;
+        }
+        .market-jewels-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        .market-jewel-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+        .market-jewel-icon {
+            width: 1.15rem;
+            height: auto;
+            max-height: 1.35rem;
+            flex-shrink: 0;
+            object-fit: contain;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+        }
+        .market-pill-row {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .market-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.22rem 0.65rem;
+            border-radius: 9999px;
+            font-weight: 800;
+            font-size: 0.72rem;
+            line-height: 1.2;
+        }
+        .market-pill-dc {
+            background: linear-gradient(180deg, #99f6e4 0%, #5eead4 55%, #2dd4bf 100%);
+            color: #0f172a;
+            border: 1px solid rgba(15, 23, 42, 0.14);
+        }
+        .market-pill-zen {
+            background: linear-gradient(180deg, #fef9c3 0%, #fef08a 100%);
+            color: #0f172a;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+        }
+        .market-pill-tag {
+            font-weight: 900;
+            letter-spacing: 0.03em;
+        }
+        .market-pill-val {
+            font-weight: 800;
+        }
+        .market-meta-sub {
+            font-size: 0.65rem;
+            color: rgba(148, 163, 184, 0.85);
+            margin-top: 0.15rem;
+        }
     </style>
 </head>
 <body class="min-h-screen text-gray-200">
@@ -96,6 +270,12 @@
                 <div>
                     <h1 class="text-3xl font-bold text-white">🛡️ Mi Colección</h1>
                     <p id="userInfo" class="text-gray-400 mt-1"></p>
+                    <div class="mt-3 w-full sm:w-64">
+                        <label for="filterBonusType" class="block text-xs text-gray-400 mb-1">Filtrar sets por bonus</label>
+                        <select id="filterBonusType" onchange="onBonusFilterChange()" class="w-full px-3 py-2 rounded-lg text-sm">
+                            <option value="Todos">Todos los bonus</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="flex gap-3 flex-wrap">
                     <button onclick="toggleSidebar()" class="bg-mu-purple hover:bg-purple-600 px-5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2">
@@ -431,6 +611,7 @@
         const PAGE_SIZE = 20;
         let filterReloadTimer = null;
         let allSets = [];
+        let currentBonusFilter = 'Todos';
 
         const BONUS_STATS = {
             hp: { label: 'HP', unit: '' },
@@ -624,6 +805,7 @@
             document.getElementById('authScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
             document.getElementById('userInfo').textContent = `Usuario: ${currentUsername}`;
+            loadBonusTypeFilter();
             loadItems();
             loadSetsForFilter();
         }
@@ -747,6 +929,40 @@
             return `/static/assets/Sets/${encodeURIComponent(normalizeSetName(setName))}.png`;
         }
 
+        function getSetBonusTypes(setName) {
+            const bonus = SET_BONUSES[normalizeSetName(setName)] || {};
+            return Object.keys(bonus);
+        }
+
+        function getSetBonusText(setName) {
+            const bonus = SET_BONUSES[normalizeSetName(setName)];
+            if (!bonus) return 'Sin bonus';
+            return Object.entries(bonus)
+                .map(([stat, value]) => formatBonus(stat, value))
+                .join(' / ');
+        }
+
+        function onBonusFilterChange() {
+            const el = document.getElementById('filterBonusType');
+            currentBonusFilter = el?.value || 'Todos';
+            renderGallery(itemsLight);
+        }
+
+        async function loadBonusTypeFilter() {
+            try {
+                const response = await fetch(`${API_URL}/api/bonus-types`);
+                const data = await response.json();
+                const select = document.getElementById('filterBonusType');
+                select.innerHTML = '<option value="Todos">Todos los bonus</option>';
+                (data.bonus_types || []).forEach(({ value, label }) => {
+                    select.innerHTML += `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+                });
+                select.value = currentBonusFilter;
+            } catch (error) {
+                console.error('Error loading bonus filters:', error);
+            }
+        }
+
         function switchView(view) {
             const tableView = document.getElementById('tableView');
             const galleryView = document.getElementById('galleryView');
@@ -797,10 +1013,27 @@
                 sets[normalizedSetName].push({...item, nombre_set: normalizedSetName});
             });
             
-            grid.innerHTML = Object.keys(sets).map(setName => {
+            const visibleSetNames = Object.keys(sets).filter(setName => {
+                if (currentBonusFilter === 'Todos') return true;
+                return getSetBonusTypes(setName).includes(currentBonusFilter);
+            });
+
+            if (visibleSetNames.length === 0) {
+                grid.classList.add('hidden');
+                noItems.classList.remove('hidden');
+                noItems.querySelector('p.text-lg').textContent = 'No hay sets con ese tipo de bonus';
+                return;
+            }
+
+            noItems.querySelector('p.text-lg').textContent = 'No hay sets para mostrar';
+            grid.classList.remove('hidden');
+            noItems.classList.add('hidden');
+
+            grid.innerHTML = visibleSetNames.map(setName => {
                 const setItems = sets[setName];
                 const allPieces = ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
                 const safeSetName = escapeHtml(setName);
+                const safeSetBonus = escapeHtml(getSetBonusText(setName));
                 const setNameLiteral = jsString(setName);
                 const imageSrc = getSetImageSrc(setName);
                 
@@ -818,8 +1051,8 @@
                                      onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
                             </div>
                             <div class="flex-1">
-                                <h3 class="text-lg font-bold text-white mb-1">${safeSetName}</h3>
-                                <p class="text-sm text-gray-400 mb-3">🎁 Bonus Activo</p>
+                                <h3 class="text-lg font-bold text-white mb-1">${safeSetName} <span class="text-sm text-amber-300 font-medium">· ${safeSetBonus}</span></h3>
+                                <p class="text-sm text-gray-400 mb-3">🎁 Bonus del set</p>
                                 <div class="space-y-1">
                                     ${allPieces.map(piece => {
                                         const item = setItems.find(i => i.pieza === piece);
@@ -1275,33 +1508,425 @@
             return filters.length ? filters.join(', ') : 'Sin opciones excelentes';
         }
 
+        /** Nivel numérico API / dígitos imsd3 → misma escala que tier del juego (0–4). */
+        function apiNumericToUiRarity(apiLevel) {
+            const L = parseInt(apiLevel, 10);
+            if (Number.isNaN(L)) return 0;
+            return Math.max(0, Math.min(4, L));
+        }
+
+        function apiOptionLevelToUiRarity(apiLevel) {
+            return apiNumericToUiRarity(apiLevel);
+        }
+
+        function coerceUiRarity(value) {
+            const n = parseInt(value, 10);
+            if (Number.isNaN(n)) return 0;
+            return Math.max(0, Math.min(4, n));
+        }
+
+        function rarityToBadgeClass(uiRarity) {
+            return `mu-badge-r${coerceUiRarity(uiRarity)}`;
+        }
+
+        function dcAmountDisplay(result) {
+            if (result.dcPrice != null && result.dcPrice !== '') {
+                return { amount: result.dcPrice, currency: result.dcCurrency || 'DC' };
+            }
+            const prices = Array.isArray(result.prices) ? result.prices : [];
+            for (let i = 0; i < prices.length; i++) {
+                const p = prices[i];
+                if (p && typeof p === 'object') {
+                    const cur = String(p.currency || p.type || '').toUpperCase();
+                    if ((cur === 'DC' || cur.includes('DREAM')) && (p.amount != null || p.value != null)) {
+                        return { amount: p.amount ?? p.value, currency: 'DC' };
+                    }
+                }
+            }
+            return { amount: null, currency: 'DC' };
+        }
+
+        function isDreamCoinsCurrency(c) {
+            const u = String(c || '').toUpperCase();
+            return u === 'DC' || u.includes('DREAM');
+        }
+
+        function jewelIconSrc(cls) {
+            const files = {
+                life: 'Life.png',
+                bless: 'Bless.png',
+                soul: 'Soul.png',
+                chaos: 'Chaos.png',
+                creation: 'Creation.png',
+                generic: 'Bless.png',
+            };
+            const key = ['life', 'bless', 'soul', 'chaos', 'creation'].includes(cls) ? cls : 'generic';
+            return `/static/assets/jewels/${files[key]}`;
+        }
+
+        function jewelDotClassFromCurrency(cur) {
+            const u = String(cur || '').toUpperCase();
+            // "Jewel of Life" / "Life" / "Lifes" antes que SOUL genérico mal etiquetado
+            if (u.includes('BLESS') || u.includes('BLES')) return 'bless';
+            if (/JEWEL\s+OF\s+LIFE|JO\s*-?\s*LIFE|\bLIFES?\b/i.test(String(cur || '')) && !u.includes('MAXIMUM') && !u.includes('INCREASE')) {
+                return 'life';
+            }
+            if (u.includes('SOUL')) return 'soul';
+            if (u.includes('LIFE') && !u.includes('MAX')) return 'life';
+            if (u.includes('CHAOS')) return 'chaos';
+            if (u.includes('CREATION')) return 'creation';
+            return 'generic';
+        }
+
+        function parseMarketPriceParts(result) {
+            const prices = Array.isArray(result.prices) ? result.prices : [];
+            const dc = [];
+            const zen = [];
+            const jewels = [];
+            prices.forEach(p => {
+                if (!p || typeof p !== 'object') return;
+                const curRaw = String(p.currency || p.type || '').trim();
+                const u = curRaw.toUpperCase();
+                const amt = p.amount ?? p.value;
+                if (amt === undefined || amt === null || amt === '') return;
+                if (u === 'DC' || u.includes('DREAM')) {
+                    dc.push(String(amt));
+                } else if (u.includes('ZEN')) {
+                    zen.push(String(amt));
+                } else if (
+                    /BLESS|BLES|SOUL|CHAOS|CREATION|JEWEL|GEM/i.test(u) ||
+                    /\bLIFES?\b/i.test(u) ||
+                    /JEWEL\s+OF\s+LIFE|JO\s*-?\s*LIFE/i.test(u)
+                ) {
+                    jewels.push({
+                        cls: jewelDotClassFromCurrency(curRaw),
+                        amount: String(amt),
+                        raw: curRaw || 'Jewel',
+                    });
+                }
+            });
+            const bag = result.jewels || result.jewelCosts || result.jewel_costs;
+            if (Array.isArray(bag)) {
+                bag.forEach(j => {
+                    if (!j || typeof j !== 'object') return;
+                    const curRaw = String(j.currency || j.type || j.name || '').trim();
+                    const amt = j.amount ?? j.count ?? j.value;
+                    if (amt === undefined || amt === null || amt === '') return;
+                    jewels.push({
+                        cls: jewelDotClassFromCurrency(curRaw || j.kind || 'jewel'),
+                        amount: String(amt),
+                        raw: curRaw || 'Jewel',
+                    });
+                });
+            }
+            return { dc, zen, jewels };
+        }
+
+        function buildMarketPriceHtml(result) {
+            let { dc, zen, jewels } = parseMarketPriceParts(result);
+            /* Izquierda → derecha: Life, Bless, Soul, Chaos, Creation */
+            const jewelOrder = { life: 0, bless: 1, soul: 2, chaos: 3, creation: 4 };
+            jewels.sort((a, b) => (jewelOrder[a.cls] ?? 9) - (jewelOrder[b.cls] ?? 9));
+            if (!dc.length && result.dcPrice != null && result.dcPrice !== '') {
+                if (isDreamCoinsCurrency(result.dcCurrency)) {
+                    dc.push(String(result.dcPrice));
+                }
+            }
+            if (!dc.length) {
+                const fb = dcAmountDisplay(result);
+                if (fb.amount != null && fb.amount !== '' && isDreamCoinsCurrency(fb.currency)) {
+                    dc.push(String(fb.amount));
+                }
+            }
+            const chunks = [];
+            if (jewels.length) {
+                chunks.push(`<div class="market-jewels-row">${jewels.map(j => `
+                    <span class="market-jewel-chip" title="${escapeHtml(j.raw)}">
+                        <img class="market-jewel-icon" src="${jewelIconSrc(j.cls)}" width="20" height="24" alt="" loading="lazy">
+                        <span class="market-jewel-amt">${escapeHtml(j.amount)}</span>
+                    </span>`).join('')}</div>`);
+            }
+            dc.forEach(a => {
+                chunks.push(`<div class="market-pill-row"><span class="market-pill market-pill-dc"><span class="market-pill-tag">DC</span><span class="market-pill-val">${escapeHtml(a)}</span></span></div>`);
+            });
+            zen.forEach(a => {
+                chunks.push(`<div class="market-pill-row"><span class="market-pill market-pill-zen"><span class="market-pill-tag">ZEN</span><span class="market-pill-val">${escapeHtml(a)}</span></span></div>`);
+            });
+            if (!chunks.length) {
+                chunks.push('<div class="market-pill-row text-xs text-slate-500">Sin precio</div>');
+            }
+            return `<div class="market-price-stack">${chunks.join('')}</div>`;
+        }
+
+        function dedupeBadgesMaxRarity(badges) {
+            const best = {};
+            const order = [];
+            badges.forEach(b => {
+                const k = b.code;
+                if (!best[k]) {
+                    order.push(k);
+                    best[k] = { ...b };
+                } else if (coerceUiRarity(b.rarity) > coerceUiRarity(best[k].rarity)) {
+                    best[k] = { ...b };
+                }
+            });
+            return order.map(k => best[k]);
+        }
+
+        function unwrapMarketOption(raw) {
+            if (!raw || typeof raw !== 'object') return raw;
+            const inner = raw.excellentOption || raw.excellent_option || raw.opt;
+            if (inner && typeof inner === 'object') {
+                const merged = { ...raw, ...inner };
+                delete merged.excellentOption;
+                delete merged.excellent_option;
+                delete merged.opt;
+                return merged;
+            }
+            return raw;
+        }
+
+        function fallbackInferBadgesFromOptions(result) {
+            const keys = ['options', 'excellentOptions', 'excellent_options', 'opts'];
+            const alias = { imsd: 'sd', izdr: 'zen', iml: 'hp', imm: 'mana', rd: 'ref' };
+            const labelBy = { sd: 'SD', dd: 'DD', dsr: 'DSR', ref: 'REF', hp: 'HP', zen: 'ZEN', mana: 'MH' };
+            const out = [];
+            keys.forEach(key => {
+                let opts = result[key];
+                if (!opts) return;
+                if (!Array.isArray(opts)) opts = [opts];
+                opts.forEach(raw => {
+                    const opt = unwrapMarketOption(raw);
+                    if (typeof opt === 'string') {
+                        const m = opt.trim().toLowerCase().match(/^(imsd|izdr|iml|imm|sd|dd|dsr|ref|rd|hp|zen|mana)(\d)?$/);
+                        if (m) {
+                            const c = alias[m[1]] || m[1];
+                            const apiLvl = m[2] ? parseInt(m[2], 10) : 0;
+                            out.push({ code: c, label: labelBy[c] || c.toUpperCase(), rarity: apiOptionLevelToUiRarity(apiLvl) });
+                        }
+                        return;
+                    }
+                    if (opt && typeof opt === 'object') {
+                        let code = opt.code || opt.type || opt.name || opt.option || opt.optionType || opt.key || opt.optionCode || opt.excellentType;
+                        let rarity = 0;
+                        if (code == null && Object.keys(opt).length === 1) {
+                            const k = Object.keys(opt)[0];
+                            code = String(k).replace(/\d+$/g, '');
+                            const v = Object.values(opt)[0];
+                            rarity = v != null && v !== ''
+                                ? apiOptionLevelToUiRarity(v)
+                                : 0;
+                        } else {
+                            const apiLvl =
+                                opt.level != null ? opt.level
+                                : opt.optionLevel != null ? opt.optionLevel
+                                : opt.option_level != null ? opt.option_level
+                                : opt.lvl != null ? opt.lvl
+                                : opt.rarity != null ? opt.rarity
+                                : opt.grade != null ? opt.grade
+                                : opt.tier != null ? opt.tier
+                                : null;
+                            rarity = apiLvl != null ? apiOptionLevelToUiRarity(apiLvl) : 0;
+                        }
+                        const low = String(code || '').toLowerCase().replace(/\d+$/g, '');
+                        const c = alias[low] || low;
+                        if (labelBy[c]) {
+                            out.push({ code: c, label: labelBy[c], rarity });
+                        }
+                    }
+                });
+            });
+            return dedupeBadgesMaxRarity(out);
+        }
+
+        function badgesFromRegexBlob(result) {
+            try {
+                const blob = JSON.stringify(result).toLowerCase();
+                const re = /(?:^|[^a-z0-9])(imsd|izdr|iml|imm|sd|dd|dsr|ref|rd|hp|zen|mana)(\d)(?=[^0-9]|$)/g;
+                const alias = { imsd: 'sd', izdr: 'zen', iml: 'hp', imm: 'mana', rd: 'ref' };
+                const labelBy = { sd: 'SD', dd: 'DD', dsr: 'DSR', ref: 'REF', hp: 'HP', zen: 'ZEN', mana: 'MANA' };
+                const out = [];
+                let m;
+                while ((m = re.exec(blob)) !== null) {
+                    const c = alias[m[1]] || m[1];
+                    if (!labelBy[c]) continue;
+                    out.push({
+                        code: c,
+                        label: labelBy[c],
+                        rarity: apiOptionLevelToUiRarity(parseInt(m[2], 10)),
+                    });
+                }
+                return dedupeBadgesMaxRarity(out);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function badgesFromNestedOptionObjects(result) {
+            const keys = ['options', 'excellentOptions', 'excellent_options', 'opts', 'excellent', 'excellent_option_list', 'excellentOptionList', 'excellentDetails', 'details', 'itemDetails', 'modifiers', 'attributes', 'bonusOptions', 'bonuses'];
+            const out = [];
+            keys.forEach(k => {
+                const v = result[k];
+                if (v == null || v === '') return;
+                if (typeof v === 'string') {
+                    const wrap = { _rawOptionText: v };
+                    out.push(...badgesFromRegexBlob(wrap));
+                    out.push(...badgesFromJsonKeyedLevels(wrap));
+                    try {
+                        const parsed = JSON.parse(v);
+                        const entries = Array.isArray(parsed) ? parsed : parsed && typeof parsed === 'object' ? [parsed] : [];
+                        entries.forEach(o => {
+                            if (o && typeof o === 'object') {
+                                out.push(...badgesFromJsonKeyedLevels(o));
+                                out.push(...badgesFromRegexBlob(o));
+                            }
+                        });
+                    } catch (e) { /* texto libre, ya aplicado arriba */ }
+                    return;
+                }
+                const entries = Array.isArray(v) ? v : [v];
+                entries.forEach(o => {
+                    if (o && typeof o === 'object' && !Array.isArray(o)) {
+                        out.push(...badgesFromJsonKeyedLevels(o));
+                        out.push(...badgesFromRegexBlob(o));
+                    }
+                });
+            });
+            return dedupeBadgesMaxRarity(out);
+        }
+
+        function badgesFromJsonKeyedLevels(result) {
+            try {
+                const blob = JSON.stringify(result).toLowerCase();
+                const labelBy = { sd: 'SD', dd: 'DD', dsr: 'DSR', ref: 'REF', hp: 'HP', zen: 'ZEN', mana: 'MANA' };
+                const marketCodes = { sd: 'imsd', dd: 'dd', dsr: 'dsr', ref: 'rd', hp: 'iml', zen: 'izdr', mana: 'imm' };
+                const out = [];
+                Object.keys(labelBy).forEach(canon => {
+                    const alts = [canon, marketCodes[canon]].filter(Boolean);
+                    for (let i = 0; i < alts.length; i++) {
+                        const alt = alts[i];
+                        const rx = new RegExp(`"${alt}"\\s*:\\s*"?(\\d+)"?`, 'i');
+                        const m = blob.match(rx);
+                        if (m) {
+                            out.push({
+                                code: canon,
+                                label: labelBy[canon],
+                                rarity: apiOptionLevelToUiRarity(parseInt(m[1], 10)),
+                            });
+                            break;
+                        }
+                    }
+                });
+                return dedupeBadgesMaxRarity(out);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        /** Textos tipo API MU Dream: "[Normal] Damage Decrease" */
+        function canonFromDescriptionText(s) {
+            const low = String(s).trim().toLowerCase();
+            if (!low) return '';
+            if (low === 'sd' || low === 'imsd') return 'sd';
+            if ((/(?:^|\s)sd(?:\s|$)/.test(low) || /\bimsd\b/.test(low)) && !low.includes('damage decrease')) return 'sd';
+            if (low.includes('damage decrease') || low === 'dd') return 'dd';
+            if (low.includes('defense success rate') || low.includes('def success') || low === 'dsr' || low === 'dr') return 'dsr';
+            if (low.includes('reflect damage')) return 'ref';
+            if (low.includes('zen drop') || low.includes('zen obtain')) return 'zen';
+            if (low.includes('increase shield') || low.includes('increase sd') || low === 'shield') return 'sd';
+            if (low.includes('increase maximum life') || low.includes('increase max life') || low.includes('max hp')) return 'hp';
+            if (low.includes('increase maximum mana') || low.includes('max mana')) return 'mana';
+            return '';
+        }
+
+        function badgesFromBracketOptionLines(result) {
+            const keys = ['options', 'excellentOptions', 'excellent_options', 'opts', 'excellent', 'excellent_option_list', 'excellentOptionList', 'excellentDetails', 'details', 'itemDetails', 'modifiers', 'attributes', 'bonusOptions', 'bonuses'];
+            const labelBy = { sd: 'SD', dd: 'DD', dsr: 'DSR', ref: 'REF', hp: 'HP', zen: 'ZEN', mana: 'MANA' };
+            const re = /^\s*\[(normal|common|uncommon|rare|epic|legendary)\]\s*(.+)$/i;
+            const tierMap = { normal: 0, common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+            const out = [];
+            keys.forEach(k => {
+                const v = result[k];
+                if (!Array.isArray(v)) return;
+                v.forEach(line => {
+                    if (typeof line !== 'string') return;
+                    const m = line.trim().match(re);
+                    if (!m) return;
+                    const tier = (m[1] || '').toLowerCase();
+                    const rarity = tierMap[tier] !== undefined ? tierMap[tier] : 0;
+                    const code = canonFromDescriptionText(m[2]);
+                    if (!code || !labelBy[code]) return;
+                    out.push({ code, label: labelBy[code], rarity });
+                });
+            });
+            return dedupeBadgesMaxRarity(out);
+        }
+
+        function normalizeMarketBadges(result) {
+            const api = Array.isArray(result.marketBadges) ? result.marketBadges : [];
+            const fromApi = api.map(b => ({
+                code: b.code,
+                label: b.label || String(b.code || '').toUpperCase(),
+                rarity: coerceUiRarity(
+                    b.rarity != null ? b.rarity : b.level != null ? b.level : b.optionLevel
+                ),
+            }));
+            const kv = badgesFromJsonKeyedLevels(result);
+            const rx = badgesFromRegexBlob(result);
+            const nested = badgesFromNestedOptionObjects(result);
+            const bracket = badgesFromBracketOptionLines(result);
+            let combined = [...fromApi, ...kv, ...rx, ...nested, ...bracket];
+            if (combined.length === 0) {
+                combined = fallbackInferBadgesFromOptions(result);
+            }
+            return dedupeBadgesMaxRarity(combined);
+        }
+
         function renderMarketResultCard(result) {
-            const name = escapeHtml(result.name || 'Item sin nombre');
             const level = result.level ?? 0;
             const gearScore = result.gearScore ?? '-';
-            const options = Array.isArray(result.options) ? result.options : [];
-            const optionText = options.length
-                ? options.map(opt => escapeHtml(typeof opt === 'object' ? Object.values(opt).join(' ') : opt)).join(', ')
-                : 'Sin opciones';
-            const prices = Array.isArray(result.prices) ? result.prices : [];
-            const priceText = prices.length
-                ? prices.map(price => `${escapeHtml(price.currency || '')}: ${escapeHtml(price.amount ?? '')}`).join(' | ')
-                : 'Sin precios publicados';
+            const rawName = result.name || 'Item sin nombre';
+            const showName = `${rawName}${level ? ` +${level}` : ''}`;
             const imageUrl = escapeHtml(result.imageUrl || 'https://muonline.webzen.com/img/common/logo.png');
             const matchReasons = Array.isArray(result.match_reasons) ? result.match_reasons : [];
-            const matchText = matchReasons.length
-                ? matchReasons.map(reason => escapeHtml(typeof reason === 'object' ? Object.values(reason).join(' ') : reason)).join(' | ')
+            const matchTitle = matchReasons.length
+                ? matchReasons.map(r => (typeof r === 'object' ? Object.values(r).join(' ') : String(r))).join(', ')
                 : '';
 
+            const badges = normalizeMarketBadges(result);
+            const luckHtml = result.hasLuck
+                ? `<span class="mu-badge mu-badge-luck"><span class="mu-badge-icon" aria-hidden="true">★</span> Luck</span>`
+                : '';
+
+            const optHtml = badges.map(b => {
+                const cls = rarityToBadgeClass(b.rarity);
+                const lb = escapeHtml(b.label || b.code || '');
+                return `<span class="mu-badge ${cls}">${lb}</span>`;
+            }).join('');
+
+            const badgeStripInner = `${luckHtml}${optHtml}`;
+            const badgeStripHtml = badgeStripInner
+                ? badgeStripInner
+                : '<span class="text-xs text-gray-500 uppercase tracking-wide">Sin opciones</span>';
+
+            const priceHtml = buildMarketPriceHtml(result);
+
+            const subMeta = `<div class="market-meta-sub">GS ${escapeHtml(String(gearScore))}</div>`;
+
             return `
-                <div class="border border-mu-border rounded-lg p-4 flex gap-4 bg-mu-dark">
-                    <img src="${imageUrl}" alt="${name}" class="w-16 h-16 object-contain bg-black/30 rounded" onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
-                    <div class="flex-1">
-                        <h4 class="text-sm font-bold text-white">${name} +${escapeHtml(level)}</h4>
-                        <p class="text-xs text-gray-400 mt-1">GS: ${escapeHtml(gearScore)} | Opciones: ${optionText}</p>
-                        <p class="mt-2 text-xs text-green-300">💰 ${priceText}</p>
-                        ${matchText ? `<p class="mt-2 text-xs text-amber-300">🎯 Match: ${matchText}</p>` : ''}
+                <div class="market-row" ${matchTitle ? `title="${escapeHtml(matchTitle)}"` : ''}>
+                    <div class="market-item-cell">
+                        <img src="${imageUrl}" alt="" class="market-thumb" width="48" height="48"
+                            onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
+                        <div class="market-item-meta">
+                            <div class="market-name-excellent">${escapeHtml(showName)}</div>
+                            ${subMeta}
+                        </div>
                     </div>
+                    <div class="market-badge-strip">
+                        ${badgeStripHtml}
+                    </div>
+                    <div class="market-price-col">${priceHtml}</div>
                 </div>
             `;
         }
@@ -1328,8 +1953,8 @@
                     body = '<div class="text-blue-300 bg-blue-950/40 border border-blue-900 rounded-lg p-3 text-sm">No se encontraron items en el mercado</div>';
                 } else {
                     body = `
-                        <p class="text-sm text-amber-300 mb-3">${group.results.length} resultado${group.results.length === 1 ? '' : 's'} encontrado${group.results.length === 1 ? '' : 's'}</p>
-                        <div class="space-y-3">
+                        <p class="text-sm text-amber-300 mb-2 px-1">${group.results.length} resultado${group.results.length === 1 ? '' : 's'} encontrado${group.results.length === 1 ? '' : 's'}</p>
+                        <div class="market-results-inner rounded-lg overflow-hidden border border-mu-border">
                             ${group.results.map(renderMarketResultCard).join('')}
                         </div>
                     `;
