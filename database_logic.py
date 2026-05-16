@@ -63,6 +63,14 @@ CANONICAL_SET_NAMES = (
     "Holy Spirit",
     "Dark Steel",
     "Dark Phoenix",
+    "Great Dragon",
+    "Dark Soul",
+    "Hurricane",
+    "Red Spirit",
+    "Dark Master",
+    "Thunder Hawk",
+    "Storm Blitz",
+    "Piercing Grove",
 )
 
 BASE_MASTER_SETS = list(CANONICAL_SET_NAMES)
@@ -71,6 +79,8 @@ BASE_MASTER_SETS = list(CANONICAL_SET_NAMES)
 SET_NAME_ALIASES = {
     "sphinix": "Sphinx",
     "shpinx": "Sphinx",
+    "thuner hawk": "Thunder Hawk",
+    "thunder hawk": "Thunder Hawk",
 }
 
 _CANONICAL_BY_LOWER = {name.lower(): name for name in CANONICAL_SET_NAMES}
