@@ -207,6 +207,26 @@
             color: rgba(148, 163, 184, 0.85);
             margin-top: 0.15rem;
         }
+        .gallery-set-thumb {
+            width: 8rem;
+            height: 8rem;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(42, 54, 84, 0.9);
+            border-radius: 0.5rem;
+            background: radial-gradient(ellipse at center, rgba(30, 41, 59, 0.9) 0%, rgba(10, 14, 26, 0.98) 70%);
+            overflow: hidden;
+        }
+        .gallery-set-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+            padding: 0.35rem;
+            image-rendering: auto;
+        }
     </style>
 </head>
 <body class="min-h-screen text-gray-200">
@@ -418,7 +438,7 @@
                     <p class="text-6xl mb-4">🖼️</p>
                     <p class="text-lg">No hay sets para mostrar</p>
                 </div>
-                <div id="galleryGrid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div id="galleryGrid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     <!-- Gallery cards will be rendered here by JS -->
                 </div>
             </div>
@@ -1039,9 +1059,9 @@
             grid.classList.remove('hidden');
             noItems.classList.add('hidden');
 
-            grid.innerHTML = visibleSetNames.map(setName => {
+            grid.innerHTML = visibleSetNames.sort((a, b) => a.localeCompare(b, 'es')).map(setName => {
                 const setItems = sets[setName];
-                const allPieces = ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
+                const allPieces = getRequiredPieces(setName);
                 const safeSetName = escapeHtml(setName);
                 const safeSetBonus = escapeHtml(getSetBonusText(setName));
                 const setNameLiteral = jsString(setName);
@@ -1053,14 +1073,14 @@
                             class="absolute top-3 right-3 w-8 h-8 rounded-full bg-mu-dark border border-mu-border hover:border-mu-purple flex items-center justify-center text-sm">
                             🔍
                         </button>
-                        <div class="flex gap-4">
-                            <div class="w-32 h-32 flex-shrink-0 border border-mu-border rounded-lg overflow-hidden bg-mu-dark">
+                        <div class="flex gap-4 items-start">
+                            <div class="gallery-set-thumb">
                                 <img src="${imageSrc}"
                                      alt="${safeSetName}"
-                                     class="w-full h-full object-contain p-2"
+                                     loading="lazy"
                                      onerror="this.onerror=null; this.src='/static/assets/Sets/default.png';">
                             </div>
-                            <div class="flex-1">
+                            <div class="flex-1 min-w-0">
                                 <h3 class="text-lg font-bold text-white mb-1">${safeSetName} <span class="text-sm text-amber-300 font-medium">· ${safeSetBonus}</span></h3>
                                 <p class="text-sm text-gray-400 mb-3">🎁 Bonus del set</p>
                                 <div class="space-y-1">
