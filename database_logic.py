@@ -999,9 +999,9 @@ def load_user_data_bundle(
         )
 
         light_df = pd.read_sql(
-            f"SELECT id, nombre_set, pieza, obtenido FROM sets WHERE user_id = %s {order_by}",
+            f"SELECT id, nombre_set, pieza, obtenido FROM sets WHERE {where_sql} {order_by}",
             conn,
-            params=(user_id,),
+            params=params,
         )
         df_premios = pd.read_sql("SELECT * FROM premios_sets", conn)
 
@@ -1312,12 +1312,12 @@ def create_set_complete(user_id, nombre_set, kundun):
     if not conn: return False
     try:
         cur = conn.cursor()
-        sets_sin_helm = {"Storm Crow", "Sacred Fire", "Storm Zahard"}
-        sets_sin_guantes = set()
-        if nombre_set in sets_sin_helm:
-            piezas = ("Armor", "Pants", "Gloves", "Boots")
-        elif nombre_set in sets_sin_guantes:
+        sets_sin_guantes = {"Sacred Fire", "Storm Zahard", "Piercing Grove"}
+        sets_sin_helm = {"Storm Crow", "Thunder Hawk", "Hurricane"}
+        if nombre_set in sets_sin_guantes:
             piezas = ("Helm", "Armor", "Pants", "Boots")
+        elif nombre_set in sets_sin_helm:
+            piezas = ("Armor", "Pants", "Gloves", "Boots")
         else:
             piezas = ("Helm", "Armor", "Pants", "Gloves", "Boots")
         for p in piezas:

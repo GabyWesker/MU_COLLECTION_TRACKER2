@@ -1026,6 +1026,12 @@
                 loading.classList.add('hidden');
                 grid.classList.add('hidden');
                 noItems.classList.remove('hidden');
+                const msg = noItems.querySelector('p.text-lg');
+                if (msg) {
+                    msg.textContent = totalItemCount > 0
+                        ? 'Sin resultados con estos filtros.'
+                        : 'No hay sets para mostrar';
+                }
                 return;
             }
             
@@ -1236,10 +1242,10 @@
 
         function getRequiredPieces(setName) {
             setName = normalizeSetName(setName);
-            const setsSinHelm = new Set(['Storm Crow', 'Sacred Fire', 'Storm Zahard']);
-            const setsSinGuantes = new Set();
-            if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
+            const setsSinGuantes = new Set(['Sacred Fire', 'Storm Zahard', 'Piercing Grove']);
+            const setsSinHelm = new Set(['Storm Crow', 'Thunder Hawk', 'Hurricane']);
             if (setsSinGuantes.has(setName)) return ['Helm', 'Armor', 'Pants', 'Boots'];
+            if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
             return ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
         }
 
