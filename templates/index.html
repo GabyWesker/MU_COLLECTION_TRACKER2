@@ -1242,12 +1242,10 @@
 
         function getRequiredPieces(setName) {
             setName = normalizeSetName(setName);
-            const setsSinHelmSinGuantes = new Set(['Storm Zahard']);
-            const setsSinHelm = new Set(['Storm Crow', 'Sacred Fire']);
-            const setsSinGuantes = new Set();
-            if (setsSinHelmSinGuantes.has(setName)) return ['Armor', 'Pants', 'Boots'];
-            if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
+            const setsSinGuantes = new Set(['Sacred Fire', 'Storm Zahard', 'Piercing Grove']);
+            const setsSinHelm = new Set(['Storm Crow', 'Thunder Hawk', 'Hurricane']);
             if (setsSinGuantes.has(setName)) return ['Helm', 'Armor', 'Pants', 'Boots'];
+            if (setsSinHelm.has(setName)) return ['Armor', 'Pants', 'Gloves', 'Boots'];
             return ['Helm', 'Armor', 'Pants', 'Gloves', 'Boots'];
         }
 

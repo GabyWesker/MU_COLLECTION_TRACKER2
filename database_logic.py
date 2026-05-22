@@ -1312,15 +1312,12 @@ def create_set_complete(user_id, nombre_set, kundun):
     if not conn: return False
     try:
         cur = conn.cursor()
-        sets_sin_helm_sin_guantes = {"Storm Zahard"}
-        sets_sin_helm = {"Storm Crow", "Sacred Fire"}
-        sets_sin_guantes = set()
-        if nombre_set in sets_sin_helm_sin_guantes:
-            piezas = ("Armor", "Pants", "Boots")
+        sets_sin_guantes = {"Sacred Fire", "Storm Zahard", "Piercing Grove"}
+        sets_sin_helm = {"Storm Crow", "Thunder Hawk", "Hurricane"}
+        if nombre_set in sets_sin_guantes:
+            piezas = ("Helm", "Armor", "Pants", "Boots")
         elif nombre_set in sets_sin_helm:
             piezas = ("Armor", "Pants", "Gloves", "Boots")
-        elif nombre_set in sets_sin_guantes:
-            piezas = ("Helm", "Armor", "Pants", "Boots")
         else:
             piezas = ("Helm", "Armor", "Pants", "Gloves", "Boots")
         for p in piezas:
